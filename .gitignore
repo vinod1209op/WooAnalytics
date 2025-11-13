@@ -1,0 +1,52 @@
+# ========================
+# Dependencies
+# ========================
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# pnpm / npm debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ========================
+# Next.js (any Next app)
+# ========================
+.next/
+out/
+build/
+dist/
+
+# If you ever have multiple apps (apps/web, apps/admin, etc),
+# the patterns above will match their .next/out folders too.
+
+# ========================
+# Testing
+# ========================
+coverage/
+
+# ========================
+# Env files
+# (don’t commit real secrets)
+# ========================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ========================
+# Misc
+# ========================
+.DS_Store
+*.pem
+.vercel
+*.tsbuildinfo
+next-env.d.ts
