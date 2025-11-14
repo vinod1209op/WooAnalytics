@@ -29,9 +29,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           defaultTheme="light"
           enableSystem>
             <Navbar />
-            
             <PageShell>{children}</PageShell>
-
           </ThemeProvider>
       </body>
     </html>
