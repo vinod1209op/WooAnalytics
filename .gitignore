@@ -2,6 +2,8 @@
 # Dependencies
 # ========================
 node_modules/
+apps/api/node_modules/
+apps/web/node_modules/
 .pnp
 .pnp.*
 .yarn/*
@@ -50,3 +52,6 @@ coverage/
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+.gitignore
+package.json
+apps/api/pnpm-lock.yaml

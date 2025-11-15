@@ -1,4 +1,12 @@
 {
+	"name": "wooanalytics-monorepo",
+	"private": true,
+	"scripts": {
+		"dev:web": "cd apps/web && pnpm dev",
+		"dev:api": "cd apps/api && pnpm dev",
+		"start": "pnpm dev:api"
+	},
+
 	"devDependencies": {
 		"@types/node": "^24.10.1",
 		"autoprefixer": "^10.4.22",

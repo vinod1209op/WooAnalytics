@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import type { FilterState } from '@/components/filters/filter-bar';
-import { ymd } from '@/lib/date';
+import { useEffect, useState } from "react";
+import type { FilterState } from "@/components/filters/filter-bar";
+import { fetchJson } from "@/lib/api";
 
 export interface SalesPoint {
   date: string;
@@ -15,45 +15,26 @@ export function useSalesSeries(filter: FilterState) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      const defaultTo = new Date();
-      const defaultFrom = new Date();
-      defaultFrom.setDate(defaultFrom.getDate() - 30);
+    let cancelled = false;
 
-      const from = filter.date?.from ?? defaultFrom;
-      const to = filter.date?.to ?? defaultTo;
-
-      const points: SalesPoint[] = [];
-      const cursor = new Date(from);
-
-      while (cursor <= to) {
-        const dayIndex = points.length;
-        const base = 400 + (dayIndex % 7 === 0 ? 600 : 0);
-
-        let multiplier = 1;
-        if (filter.type === 'category' && filter.category) {
-          multiplier = 0.7;
-        } else if (filter.type === 'coupon' && filter.coupon) {
-          multiplier = 0.5;
-        }
-
-        const revenue = base * multiplier;
-        const orders = Math.max(1, Math.round(revenue / 200));
-
-        points.push({
-          date: ymd(cursor),
-          revenue: Number(revenue.toFixed(2)),
-          orders,
-        });
-
-        cursor.setDate(cursor.getDate() + 1);
+    (async () => {
+      try {
+        setLoading(true);
+        const data = await fetchJson<SalesPoint[]>("/api/sales", filter);
+        if (cancelled) return;
+        setSales(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (cancelled) return;
+        console.error("useSalesSeries error:", err);
+        setSales([]);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
+    })();
+    return () => {
+      cancelled = true;
+    };
 
-      setSales(points);
-      setLoading(false);
-    }, 200);
-
-    return () => clearTimeout(timeout);
   }, [JSON.stringify(filter)]);
 
   return { sales, loading };

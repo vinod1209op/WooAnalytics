@@ -1,6 +1,7 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
+import { fetchJson } from "@/lib/api";
 
 export function useMetaFilters() {
   const [categories, setCategories] = useState<string[]>([]);
@@ -9,34 +10,33 @@ export function useMetaFilters() {
 
   useEffect(() => {
     let cancelled = false;
-    
-    // For now: mock data + small fake delay so the UI can show a loading state.
-    // Later we’ll replace this with a real API call.
-    const timeout = setTimeout(() => {
+
+    (async () => {
+      try {
+        setLoadingMeta(true);
+
+        const [cats, coups] = await Promise.all([
+          fetchJson<string[]>("/api/meta/categories"),
+          fetchJson<string[]>("/api/meta/coupons"),
+        ]);
+
         if (cancelled) return;
 
-       setCategories([ 
-        'All products',
-        'Mushrooms',
-        'Chocolate',
-        'Gummies',
-        'Bundles',
-      ]);
-
-      setCoupons([
-        'WELCOME10',
-        'BLACKFRIDAY',
-        'FREESHIP',
-        'VIP20',
-      ]);
-
-      setLoadingMeta(false);
-    }, 300);
+        setCategories(Array.isArray(cats) ? cats : []);
+        setCoupons(Array.isArray(coups) ? coups : []);
+      } catch (err) {
+        if (cancelled) return;
+        console.error("useMetaFilters error:", err);
+        setCategories([]);
+        setCoupons([]);
+      } finally {
+        if (!cancelled) setLoadingMeta(false);
+      }
+    })();
 
     return () => {
-        cancelled = true;
-        clearTimeout(timeout);
-    }
+      cancelled = true;
+    };
   }, []);
 
   return { categories, coupons, loadingMeta };

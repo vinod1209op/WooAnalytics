@@ -1,7 +1,15 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import type { FilterState } from '@/components/filters/filter-bar';
+import { useEffect, useState } from "react";
+import type { FilterState } from "@/components/filters/filter-bar";
+import { fetchJson } from "@/lib/api";
+
+export interface RfmCell {
+  recency: number;
+  frequency: number;
+  count: number;
+  score: number;
+}
 
 export interface RfmBucket {
   bucket: string;
@@ -13,23 +21,36 @@ export function useRfm(filter: FilterState) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      let factor = 1;
+    let cancelled = false;
 
-      if (filter.type === 'category' && filter.category) factor = 0.7;
-      if (filter.type === 'coupon' && filter.coupon) factor = 0.5;
+    (async () => {
+      try {
+        setLoading(true);
+        const cells = await fetchJson<RfmCell[]>("/api/rfm/heatmap", filter);
+        if (cancelled) return;
 
-      setRfm([
-        { bucket: 'R5-F5', count: Math.round(60 * factor) },
-        { bucket: 'R4-F4', count: Math.round(40 * factor) },
-        { bucket: 'R3-F2', count: Math.round(25 * factor) },
-        { bucket: 'R2-F1', count: Math.round(10 * factor) },
-      ]);
+        // turn 5x5 cells into a smaller list like "R5-F4"
+        const buckets: RfmBucket[] = cells
+          .map((c) => ({
+            bucket: `R${c.recency}-F${c.frequency}`,
+            count: c.count,
+          }))
+          .filter((b) => b.count > 0)
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10);
 
-      setLoading(false);
-    }, 200);
-
-    return () => clearTimeout(timeout);
+        setRfm(buckets);
+      } catch (err) {
+        if (cancelled) return;
+        console.error("useRfm error:", err);
+        setRfm([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [JSON.stringify(filter)]);
 
   return { rfm, loading };

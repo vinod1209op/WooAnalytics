@@ -1,38 +1,44 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import type { FilterState } from '@/components/filters/filter-bar';
+import { useEffect, useState } from "react";
+import type { FilterState } from "@/components/filters/filter-bar";
+import { fetchJson } from "@/lib/api";
 
-export interface SegmentPoint {
-  segment: string;  
-  customers: number;  
-  revenue: number;   
-  avgValue: number; 
+export interface SegmentRow {
+  segment: string;
+  customers: number;
+  revenue: number;
+  avgValue: number;
 }
 
-
 export function useSegments(filter: FilterState) {
-  const [segments, setSegments] = useState<SegmentPoint[]>([]);
+  const [segments, setSegments] = useState<SegmentRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
 
-    const timeout = setTimeout(() => {
-      let factor = 1;
-      if (filter.type === 'category' && filter.category) factor = 0.7;
-      if (filter.type === 'coupon' && filter.coupon) factor = 0.5;
+    (async () => {
+      try {
+        setLoading(true);
+        const data = await fetchJson<SegmentRow[]>(
+          "/api/segments/summary",
+          filter
+        );
+        if (cancelled) return;
+        setSegments(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (cancelled) return;
+        console.error("useSegments error:", err);
+        setSegments([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
 
-      setSegments([
-        { segment: 'Champions', customers: Math.round(65 * factor), revenue: 9200, avgValue: 511  },
-        { segment: 'Loyal', customers: Math.round(40 * factor),   revenue: 14100, avgValue: 403 },
-        { segment: 'At Risk', customers: Math.round(25 * factor), revenue: 7800,  avgValue: 867  },
-        { segment: 'Hibernating', customers: Math.round(15 * factor), revenue: 2600,  avgValue: 87 },
-      ]);
-
-      setLoading(false);
-    }, 200);
-
-    return () => clearTimeout(timeout);
   }, [JSON.stringify(filter)]);
 
   return { segments, loading };
