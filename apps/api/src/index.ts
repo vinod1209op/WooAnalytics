@@ -22,11 +22,11 @@ app.get("/health", (req, res) => {
 });
 
 // mount your clean routes
-app.use("/api/kpis", kpisRouter);
-app.use("/api/sales", salesRouter);
-app.use("/api/meta", metaRouter);
-app.use("/api/products", productsRouter);
-app.use("/api/segments", segmentsRouter);
-app.use("/api/rfm", rfmRouter);
+app.use("/kpis", kpisRouter);
+app.use("/sales", salesRouter);
+app.use("/meta", metaRouter);
+app.use("/products", productsRouter);
+app.use("/segments", segmentsRouter);
+app.use("/rfm", rfmRouter);
 
 app.listen(PORT, () => console.log(`API running on port ${PORT}`));

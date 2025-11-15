@@ -2,7 +2,7 @@ import { Router } from "express";
 
 const router = Router();
 
-// mock categories – you can change names later
+
 const MOCK_CATEGORIES = [
   "Paddles",
   "Balls",

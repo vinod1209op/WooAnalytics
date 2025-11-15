@@ -1,48 +1,44 @@
 // apps/web/lib/api.ts
-import type { FilterState } from "@/components/filters/filter-bar";
+import type { FilterState } from '@/components/filters/filter-bar';
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:3001";
+export function buildFilterParams(filter: FilterState): Record<string, string> {
+  const params: Record<string, string> = {};
 
-// turn FilterState into URLSearchParams (start, end, type, category/coupon)
-export function buildFilterQuery(filter?: FilterState): string {
-  const params = new URLSearchParams();
+  if (filter.type === 'date' && filter.date?.from && filter.date?.to) {
+    params.from = filter.date.from.toISOString().slice(0, 10);
+    params.to = filter.date.to.toISOString().slice(0, 10);
+  }
 
-  if (filter) {
-    const { type, date, category, coupon } = filter;
+  if (filter.type === 'category' && filter.category) {
+    params.category = filter.category;
+  }
 
-    if (date?.from) params.set("start", date.from.toISOString());
-    if (date?.to) params.set("end", date.to.toISOString());
+  if (filter.type === 'coupon' && filter.coupon) {
+    params.coupon = filter.coupon;
+  }
 
-    params.set("type", type);
-
-    if (type === "category" && category) {
-      params.set("category", category);
-    }
-    if (type === "coupon" && coupon) {
-      params.set("coupon", coupon);
-    }
-  }
-
-  return params.toString();
+  return params;
 }
 
-export async function fetchJson<T>(
+export async function getJson<T>(
   path: string,
-  filter?: FilterState
+  params?: Record<string, string>
 ): Promise<T> {
-  const qs = filter ? buildFilterQuery(filter) : "";
-  const url = qs ? `${API_BASE}${path}?${qs}` : `${API_BASE}${path}`;
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
-  const res = await fetch(url, {
-    // so it works both in dev & when deployed
-    cache: "no-store",
-  });
+  const url = new URL(path, base);
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Request failed ${res.status}: ${text || res.statusText}`);
+  if (params) {
+    for (const [key, value] of Object.entries(params)) {
+      if (value != null && value !== '') {
+        url.searchParams.set(key, value);
+      }
+    }
   }
 
-  return (await res.json()) as T;
+  const res = await fetch(url.toString(), { cache: 'no-store' });
+  if (!res.ok) {
+    throw new Error(`API ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<T>;
 }

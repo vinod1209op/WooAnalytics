@@ -58,6 +58,7 @@ export default function AnalyticsPage() {
               onChange={setFilter}
               categories={categories}
               coupons={coupons}
+
             />
           </div>
         </div>

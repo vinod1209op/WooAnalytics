@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchJson } from "@/lib/api";
+import { getJson } from "@/lib/api";
 
 export function useMetaFilters() {
   const [categories, setCategories] = useState<string[]>([]);
@@ -16,8 +16,8 @@ export function useMetaFilters() {
         setLoadingMeta(true);
 
         const [cats, coups] = await Promise.all([
-          fetchJson<string[]>("/api/meta/categories"),
-          fetchJson<string[]>("/api/meta/coupons"),
+          getJson<string[]>("/meta/categories"),
+          getJson<string[]>("/meta/coupons"),
         ]);
 
         if (cancelled) return;
