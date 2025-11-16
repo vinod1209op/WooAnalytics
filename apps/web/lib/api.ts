@@ -1,21 +1,22 @@
 // apps/web/lib/api.ts
 import type { FilterState } from '@/components/filters/filter-bar';
+import { useStore } from '../hooks/store-context';
 
-export function buildFilterParams(filter: FilterState): Record<string, string> {
-  const params: Record<string, string> = {};
+export const API_BASE = 'http://localhost:3001';
 
+export function buildFilterParams(filter: FilterState, storeId: string ): URLSearchParams {
+  const params = new URLSearchParams();
+  params.set("storeId", storeId);
+  params.set("type", filter.type);
+  
   if (filter.type === 'date' && filter.date?.from && filter.date?.to) {
     params.from = filter.date.from.toISOString().slice(0, 10);
     params.to = filter.date.to.toISOString().slice(0, 10);
   }
 
-  if (filter.type === 'category' && filter.category) {
-    params.category = filter.category;
-  }
+  if (filter.category) params.set("category", filter.category);
 
-  if (filter.type === 'coupon' && filter.coupon) {
-    params.coupon = filter.coupon;
-  }
+  if (filter.coupon) params.set("coupon", filter.coupon);
 
   return params;
 }

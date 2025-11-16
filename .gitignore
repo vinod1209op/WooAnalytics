@@ -55,3 +55,12 @@ next-env.d.ts
 .gitignore
 package.json
 apps/api/pnpm-lock.yaml
+customers.json
+orders.json
+lastone.json
+coupons.json
+outputs.json
+products.json
+reconciliation.json
+subscriptions.json
+utm.json

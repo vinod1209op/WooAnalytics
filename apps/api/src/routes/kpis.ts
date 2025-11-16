@@ -1,47 +1,117 @@
 // apps/api/routes/kpis.ts
 import { Router } from 'express';
+import { prisma } from '../prisma';
 
 const router = Router();
 
-// Same baseline numbers you use in the frontend
-const BASE = {
-  revenue: 14724.86,
-  orders: 73,
-  aov: 201.71,
-  units: 296,
-  customers: 65,
-};
+router.get('/', async(req, res) => {
+    try{
+        const { storeId, type = 'date', from, to, category, coupon } = req.query;
 
-router.get('/', (req, res) => {
-  const { type = 'date', from, to, category, coupon } = req.query;
+        if (!storeId || typeof storeId !== 'string') {
+        return res.status(400).json({ error: 'storeId is required' });
+        }
 
-  let scale = 1;
+        // ----- 1) Date range -----
+        const now = new Date();
 
-  // date range scaling
-  if (type === 'date' && typeof from === 'string' && typeof to === 'string') {
-    const fromDate = new Date(from + 'T00:00:00');
-    const toDate = new Date(to + 'T00:00:00');
+        let fromDate =
+        typeof from === 'string' && from
+            ? new Date(from + 'T00:00:00')
+            : new Date(now);
+        let toDate =
+        typeof to === 'string' && to
+            ? new Date(to + 'T23:59:59.999')
+            : new Date(now);
 
-    if (!isNaN(fromDate.getTime()) && !isNaN(toDate.getTime())) {
-      const ms = toDate.getTime() - fromDate.getTime();
-      const days = Math.max(1, Math.round(ms / 86400000) + 1);
-      scale = days / 30; // 30-day baseline
-    }
-  } else if (type === 'category' && typeof category === 'string' && category) {
-    scale = 0.6;
-  } else if (type === 'coupon' && typeof coupon === 'string' && coupon) {
-    scale = 0.5;
-  }
+        // default to "last 30 days" if no from/to
+        if (!from || !to) {
+        toDate = new Date(now);
+        toDate.setHours(23, 59, 59, 999);
+        fromDate = new Date(now);
+        fromDate.setDate(fromDate.getDate() - 29);
+        fromDate.setHours(0, 0, 0, 0);
+        }
 
-  const payload = {
-    revenue: +(BASE.revenue * scale).toFixed(2),
-    orders: Math.round(BASE.orders * scale),
-    aov: BASE.aov, // keep AOV stable
-    units: Math.round(BASE.units * scale),
-    customers: Math.round(BASE.customers * scale),
-  };
+        if (Number.isNaN(+fromDate) || Number.isNaN(+toDate)) {
+        return res.status(400).json({ error: 'Invalid from/to date' });
+        }
 
-  res.json(payload);
+        // ----- 2) Base where for orders -----
+        const whereOrders: any = {
+        storeId,
+        createdAt: {
+            gte: fromDate,
+            lte: toDate,
+        },
+        };
+
+        // Category filter -> orders that have items with products in that category
+        if (type === 'category' && typeof category === 'string' && category) {
+        whereOrders.items = {
+            some: {
+            product: {
+                categories: {
+                some: {
+                    category: {
+                    name: category,
+                    },
+                },
+                },
+            },
+            },
+        };
+        }
+
+        // Coupon filter -> orders that used that coupon code
+        if (type === 'coupon' && typeof coupon === 'string' && coupon) {
+        whereOrders.coupons = {
+            some: {
+            coupon: {
+                code: coupon,
+            },
+            },
+        };
+        }
+        // ----- 3) Run aggregates in parallel -----
+        const [agg, itemsAgg, customers] = await Promise.all([
+        prisma.order.aggregate({
+            _count: { _all: true },
+            _sum: { total: true },
+            where: whereOrders,
+        }),
+        prisma.orderItem.aggregate({
+            _sum: { quantity: true },
+            where: { order: whereOrders },
+        }),
+        prisma.order.findMany({
+            where: whereOrders,
+            select: { customerId: true },
+        }),
+        ]);
+
+        const orders = agg._count._all || 0;
+        const revenue = agg._sum.total || 0;
+        const units = itemsAgg._sum.quantity || 0;
+
+        const uniqueCustomers = new Set(
+        customers.map((c) => c.customerId).filter((id) => id != null)
+        ).size;
+
+        const aov = orders ? revenue / orders : 0;
+
+        // ----- 4) Send payload -----
+        res.json({
+        revenue: Number(revenue.toFixed(2)),
+        orders,
+        aov: Number(aov.toFixed(2)),
+        units,
+        customers: uniqueCustomers,
+        });
+    } catch (e: any) {
+        console.error('GET /kpis error:', e);
+        res.status(500).json({ error: e?.message || 'Internal server error' });
+    }
 });
 
 export default router;

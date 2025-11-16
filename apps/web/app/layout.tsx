@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { Navbar } from '@/components/layout/navbar';
 import { PageShell } from '@/components/layout/page-shell';
+import { StoreProvider } from '@/hooks/store-context';
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -29,7 +30,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           defaultTheme="light"
           enableSystem>
             <Navbar />
-            <PageShell>{children}</PageShell>
+            <PageShell><StoreProvider>{children}</StoreProvider></PageShell>
           </ThemeProvider>
       </body>
     </html>

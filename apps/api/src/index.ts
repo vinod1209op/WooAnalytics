@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 
+import storesRouter from './routes/stores';
 import kpisRouter from "./routes/kpis";
 import salesRouter from "./routes/sales";
 import metaRouter from "./routes/meta";
@@ -22,6 +23,7 @@ app.get("/health", (req, res) => {
 });
 
 // mount your clean routes
+app.use('/stores', storesRouter);
 app.use("/kpis", kpisRouter);
 app.use("/sales", salesRouter);
 app.use("/meta", metaRouter);

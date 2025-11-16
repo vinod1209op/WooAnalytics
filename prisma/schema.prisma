@@ -1,0 +1,400 @@
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/* ---------------------------------------------------
+   CORE: STORES
+---------------------------------------------------- */
+
+model Store {
+  id          String   @id @default(cuid())
+  name        String
+  wooBaseUrl  String   @unique
+  wooKey      String
+  wooSecret   String
+  webhookSecret String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  customers       Customer[]
+  products        Product[]
+  productCategories ProductCategory[]
+  orders          Order[]
+  coupons         Coupon[]
+  subscriptions   Subscription[]
+  refunds         Refund[]
+  reconciliations Reconciliation[]
+  dailySummaries  DailySummary[]
+  customerScores  CustomerScore[]
+  customerAcquisition CustomerAcquisition[]
+  cohortMonthly   CohortMonthly[]
+
+  @@map("stores")
+}
+
+/* ---------------------------------------------------
+   CORE: CUSTOMERS
+---------------------------------------------------- */
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  storeId   String
+  wooId     String?  // WooCommerce customer id (string)
+  email     String
+  firstName String?
+  lastName  String?
+  phone     String?
+  createdAt DateTime @default(now())
+  lastActiveAt DateTime?
+
+  // Relations
+  store      Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders     Order[]
+  subscriptions Subscription[]
+  score      CustomerScore?
+  acquisition CustomerAcquisition?
+
+  @@unique([storeId, email], map: "customers_store_email_uq")
+  @@unique([storeId, wooId], map: "customers_store_wooid_uq")
+  @@index([storeId, email])
+  @@map("customers")
+}
+
+/* ---------------------------------------------------
+   CORE: PRODUCTS & CATEGORIES
+---------------------------------------------------- */
+
+model Product {
+  id        Int      @id @default(autoincrement())
+  storeId   String
+  wooId     String?
+  name      String
+  sku       String?
+  price     Float    // current list price
+  status    String?  // optional Woo status
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  store      Store                 @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+  categories ProductCategoryLink[]
+  subscriptions Subscription[]
+
+  @@unique([storeId, sku], map: "products_store_sku_uq")
+  @@unique([storeId, wooId], map: "products_store_wooid_uq")
+  @@index([storeId, name])
+  @@map("products")
+}
+
+model ProductCategory {
+  id        Int      @id @default(autoincrement())
+  storeId   String
+  wooId     String?
+  name      String
+  slug      String?
+  parentId  Int?
+  createdAt DateTime @default(now())
+
+  // Relations
+  store     Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  parent    ProductCategory?    @relation("CategoryParent", fields: [parentId], references: [id])
+  children  ProductCategory[]   @relation("CategoryParent")
+  products  ProductCategoryLink[]
+
+  @@unique([storeId, name], map: "product_categories_store_name_uq")
+  @@map("product_categories")
+}
+
+// Many-to-many: product ↔ category
+model ProductCategoryLink {
+  productId  Int
+  categoryId Int
+
+  product  Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([productId, categoryId])
+  @@map("product_category_links")
+}
+
+/* ---------------------------------------------------
+   CORE: ORDERS & ITEMS
+---------------------------------------------------- */
+
+model Order {
+  id          Int      @id @default(autoincrement())
+  storeId     String
+  wooId       String?
+  customerId  Int?
+  createdAt   DateTime
+  status      String?
+  currency    String?
+
+  // Monetary breakdown
+  total          Float  // order total (Woo)
+  subtotal       Float? // items total before discounts/tax
+  discountTotal  Float?
+  shippingTotal  Float?
+  taxTotal       Float?
+
+  paymentMethod  String?
+
+  // Optional geo fields for analytics
+  shippingCountry String?
+  shippingCity    String?
+
+  // Relations
+  store        Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer     Customer?         @relation(fields: [customerId], references: [id])
+  items        OrderItem[]
+  coupons      OrderCoupon[]
+  attribution  OrderAttribution?
+  refunds      Refund[]
+  customerAcquisitions CustomerAcquisition[] @relation("AcquisitionFirstOrder")
+  
+  @@unique([storeId, wooId], map: "orders_store_wooid_uq")
+  @@index([storeId, createdAt])
+  @@index([storeId, status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  productId Int?
+  name      String
+  sku       String?
+  quantity  Int
+  unitPrice Float?
+  lineSubtotal Float?
+  lineTotal    Float?
+  taxTotal     Float?
+
+  // Relations
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+/* ---------------------------------------------------
+   CORE: COUPONS & ORDER_COUPONS
+---------------------------------------------------- */
+
+model Coupon {
+  id           Int      @id @default(autoincrement())
+  storeId      String
+  wooId        String?
+  code         String
+  discountType String?
+  amount       Float
+  dateExpires  DateTime?
+  usageLimit   Int?
+  usageCount   Int?
+
+  // Relations
+  store   Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orders  OrderCoupon[]
+
+  @@unique([storeId, code], map: "coupons_store_code_uq")
+  @@map("coupons")
+}
+
+model OrderCoupon {
+  id              Int     @id @default(autoincrement())
+  orderId         Int
+  couponId        Int
+  discountApplied Float   // actual discount amount on this order
+  revenueImpact   Float   // same as discountApplied, but named for analytics
+
+  // Relations
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([couponId])
+  @@map("order_coupons")
+}
+
+/* ---------------------------------------------------
+   CORE: SUBSCRIPTIONS
+---------------------------------------------------- */
+
+model Subscription {
+  id             Int      @id @default(autoincrement())
+  storeId        String
+  wooId          String?
+  customerId     Int
+  productId      Int?
+  status         String
+  billingInterval Int     // e.g. 1
+  billingPeriod   String  // e.g. "month"
+  startedAt      DateTime
+  nextPaymentAt  DateTime?
+  recurringAmount Float?
+
+  // Relations
+  store    Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  product  Product? @relation(fields: [productId], references: [id])
+
+  @@unique([storeId, wooId], map: "subscriptions_store_wooid_uq")
+  @@index([storeId, status])
+  @@map("subscriptions")
+}
+
+/* ---------------------------------------------------
+   CORE: REFUNDS
+---------------------------------------------------- */
+
+model Refund {
+  id        Int      @id @default(autoincrement())
+  storeId   String
+  wooId     String?
+  orderId   Int
+  amount    Float
+  reason    String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, createdAt])
+  @@map("refunds")
+}
+
+/* ---------------------------------------------------
+   CORE: RECONCILIATIONS
+---------------------------------------------------- */
+
+model Reconciliation {
+  id           Int      @id @default(autoincrement())
+  storeId      String
+  date         DateTime @db.Date
+  wooOrders    Int
+  wooRevenue   Float
+  dbOrders     Int
+  dbRevenue    Float
+  diffRevenue  Float
+  status       String   // "ok" | "mismatch"
+  note         String?
+  createdAt    DateTime @default(now())
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, date], map: "reconciliations_store_date_uq")
+  @@index([storeId, date])
+  @@map("reconciliations")
+}
+
+/* ---------------------------------------------------
+   MARKETING / ATTRIBUTION
+---------------------------------------------------- */
+
+model OrderAttribution {
+  orderId     Int     @id
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmTerm     String?
+  utmContent  String?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_attributions")
+}
+
+model CustomerAcquisition {
+  customerId       Int     @id
+  storeId          String
+  firstOrderId     Int
+  firstOrderDate   DateTime
+  firstUtmSource   String?
+  firstUtmMedium   String?
+  firstUtmCampaign String?
+
+  customer  Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  firstOrder Order   @relation("AcquisitionFirstOrder", fields: [firstOrderId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, firstOrderDate])
+  @@map("customer_acquisition")
+}
+
+/* ---------------------------------------------------
+   ANALYTICS: DAILY SUMMARY
+---------------------------------------------------- */
+
+model DailySummary {
+  id              Int      @id @default(autoincrement())
+  storeId         String
+  date            DateTime @db.Date
+  ordersCount     Int
+  revenue         Float
+  units           Int
+  uniqueCustomers Int
+  aov             Float
+  refundsAmount   Float?   // optional
+  netRevenue      Float?   // optional (revenue - refunds)
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, date], map: "daily_summary_store_date_uq")
+  @@index([storeId, date])
+  @@map("daily_summaries")
+}
+
+/* ---------------------------------------------------
+   ANALYTICS: CUSTOMER SCORES (RFM)
+---------------------------------------------------- */
+
+model CustomerScore {
+  customerId   Int     @id
+  storeId      String
+  lastOrderAt  DateTime?
+  frequency    Int?
+  monetary     Float?
+  recencyDays  Int?
+  rfmScore     Int?    // e.g. 111–555 or 1–125
+  segment      String? // "Champions", "At Risk", etc.
+  updatedAt    DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  store    Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, segment])
+  @@map("customer_scores")
+}
+
+/* ---------------------------------------------------
+   ANALYTICS: COHORT MONTHLY
+---------------------------------------------------- */
+
+model CohortMonthly {
+  id             Int      @id @default(autoincrement())
+  storeId        String
+  cohortMonth    DateTime @db.Date // normalized to first of month
+  periodMonth    Int      // 0,1,2,... months since cohort
+  customersInCohort Int
+  activeCustomers   Int
+  retentionRate     Float // percentage 0..100
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, cohortMonth, periodMonth], map: "cohort_store_cohort_period_uq")
+  @@index([storeId, cohortMonth])
+  @@map("cohort_monthly")
+}
