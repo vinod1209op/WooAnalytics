@@ -1,45 +1,73 @@
 // apps/web/lib/api.ts
 import type { FilterState } from '@/components/filters/filter-bar';
-import { useStore } from '../hooks/store-context';
 
-export const API_BASE = 'http://localhost:3001';
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE?.trim() || 'http://localhost:3001';
 
-export function buildFilterParams(filter: FilterState, storeId: string ): URLSearchParams {
-  const params = new URLSearchParams();
-  params.set("storeId", storeId);
-  params.set("type", filter.type);
-  
+export function buildFilterParams(filter: FilterState, storeId: string): Record<string, string> {
+  const params: Record<string, string> = {};
+
+  params.storeId = storeId;
+  params.type = filter.type;
+
   if (filter.type === 'date' && filter.date?.from && filter.date?.to) {
     params.from = filter.date.from.toISOString().slice(0, 10);
     params.to = filter.date.to.toISOString().slice(0, 10);
   }
 
-  if (filter.category) params.set("category", filter.category);
+  if (filter.type === 'category' && filter.category) {
+    params.category = filter.category;
+  }
 
-  if (filter.coupon) params.set("coupon", filter.coupon);
+  if (filter.type === 'coupon' && filter.coupon) {
+    params.coupon = filter.coupon;
+  }
 
   return params;
 }
 
-export async function getJson<T>(
+function buildUrl(
   path: string,
-  params?: Record<string, string>
-): Promise<T> {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+  params?: URLSearchParams | Record<string, string | number | undefined>
+) {
+  const base = API_BASE.startsWith('http')
+    ? API_BASE
+    : `https://${API_BASE}`;
 
   const url = new URL(path, base);
 
-  if (params) {
-    for (const [key, value] of Object.entries(params)) {
-      if (value != null && value !== '') {
-        url.searchParams.set(key, value);
+  if (params instanceof URLSearchParams) {
+    params.forEach((value, key) => url.searchParams.set(key, value));
+  } else if (params && typeof params === 'object') {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.set(String(key), String(value));
       }
-    }
+    });
+  }
+
+  return url;
+}
+
+
+/**
+ * Generic helper to call the API and return JSON.
+ */
+export async function getJson<T>(
+  path: string,
+  params?: URLSearchParams
+): Promise<T> {
+  const url = buildUrl(path, params);
+
+  if (params) {
+    url.search = params.toString();
   }
 
   const res = await fetch(url.toString(), { cache: 'no-store' });
+
   if (!res.ok) {
     throw new Error(`API ${res.status} ${res.statusText}`);
   }
+
   return res.json() as Promise<T>;
 }

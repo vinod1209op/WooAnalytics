@@ -23,19 +23,15 @@ router.get('/default', async (_req, res) => {
   try {
     // Option A: you add a boolean `isDefault` to Store model
     const store = await prisma.store.findFirst({
-      select: { id: true, name: true },
+      select: { id: true, name: true, wooBaseUrl: true, wooKey: true, wooSecret: true, createdAt: true },
       orderBy: { createdAt: 'asc'}
     });
 
-    // Fallback: first store if no isDefault
-    const effective = store ?? await prisma.store.findFirst({
-      select: { id: true, name: true },
-      orderBy: { createdAt: 'asc' },
-    });
+    if(!store) {
+      return res.status(404).json({error: 'No stores'});
+    }
 
-    if (!effective) return res.status(404).json({ error: 'No stores found' });
-
-    res.json(effective);
+    res.json(store);
   } catch (e: any) {
     console.error('GET /stores/default error:', e);
     res.status(500).json({ error: e.message });

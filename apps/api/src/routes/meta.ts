@@ -1,29 +1,51 @@
-import { Router } from "express";
+import { Router } from 'express';
+import { prisma } from '../prisma';
 
 const router = Router();
 
+// GET /meta/categories
+router.get('/categories', async (req, res) => {
+  try {
+    const { storeId } = req.query;
 
-const MOCK_CATEGORIES = [
-  "Paddles",
-  "Balls",
-  "Apparel",
-  "Shoes",
-  "Accessories",
-];
+    if (!storeId || typeof storeId !== 'string'){
+      return res.status(400).json({ error: "No storeId"})
+    }
 
-const MOCK_COUPONS = [
-  "WELCOME10",
-  "SUMMER-SALE",
-  "BF-2024",
-  "LOYALTY-VIP",
-];
+    const categories = await prisma.product.findMany({
+      where: { storeId },
+      select: { name: true },
+      distinct: ['id'],
+      orderBy: { createdAt: 'asc'},
+    });
 
-router.get("/categories", (_req, res) => {
-  res.json(MOCK_CATEGORIES);
+    res.json(categories.map(c => c.name));
+  } catch (e: any) {
+    console.error('GET /meta/categories error:', e);
+    res.status(500).json({ error: e.message });
+  }
 });
 
-router.get("/coupons", (_req, res) => {
-  res.json(MOCK_COUPONS);
+// GET /meta/coupons
+router.get('/coupons', async (req, res) => {
+  try {
+    const { storeId } = req.query;
+
+    if (!storeId || typeof storeId !== 'string'){
+      return res.status(400).json({ error: "No storeId"})
+    }
+
+    const coupons = await prisma.coupon.findMany({
+      where: { storeId },
+      select: { code: true },
+      orderBy: { code: 'asc' }
+    });
+
+    res.json(coupons.map(c => c.code));
+  } catch (e: any) {
+    console.error('GET /meta/coupons error:', e);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 export default router;

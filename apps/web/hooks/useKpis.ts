@@ -2,92 +2,82 @@
 
 import { useEffect, useState } from 'react';
 import type { FilterState } from '@/components/filters/filter-bar';
-import { API_BASE, STORE_ID, getJson, buildFilterParams } from '@/lib/api';
-import { ymd } from '@/lib/date';
-import { useStore } from '@/hooks/store-context';
+import { getJson, buildFilterParams } from '@/lib/api';
+import { useStore } from '@/providers/store-provider';
 
 export interface Kpis {
-  revenue: number;
-  orders: number;
-  aov: number;
-  units: number;
-  customers: number;
-}
-
-const EMPTY: Kpis = {
-  revenue: 0,
-  orders: 0,
-  aov: 0,
-  units: 0,
-  customers: 0
+  revenue: number;
+  orders: number;
+  aov: number;
+  units: number;
+  customers: number;
 }
 
 export function useKpis(filter: FilterState) {
-  const [kpis, setKpis] = useState<Kpis | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { store, loading: loadingStore, error: storeError } = useStore();
 
+  const [kpis, setKpis] = useState<Kpis | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Create a stable dependency instead of JSON.stringify
+  const filterKey =
+    `${filter.type}|${filter.date?.from?.toISOString() ?? ''}|${filter.date?.to?.toISOString() ?? ''}|${filter.category ?? ''}|${filter.coupon ?? ''}`;
 
-    if (!STORE_ID) {
-      console.warn('Missing STORE_ID - Kpis will remain zero');
-      setKpis(EMPTY);
-      setLoading(false);
-      return;
-    }
+  useEffect(() => {
+    if (loadingStore) return;
 
-    const controller = new AbortController();
+    if (!store?.id) {
+      setError(storeError || 'No store configured');
+      setKpis(null);
+      setLoading(false);
+      return;
+    }
 
-    async function run() {
-      try {
-        const params = new URLSearchParams({
-          storeId: STORE_ID,
-          type: filter.type,
-          from: ymd(filter.date.from),
-          to: ymd(filter.date.to),
-        });
+    let cancelled = false;
 
-        if (filter.type === 'category' && filter.category) {
-          params.set('category', filter.category);
-        }
-        if (filter.type === 'coupon' && filter.coupon) {
-          params.set('coupon', filter.coupon);
-        }
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
 
-        const res = await fetch(`${API_BASE} /kpis?${params.toString()}`, {
-          signal: controller.signal,
-        });
+        const q = buildFilterParams(filter, store.id);
+        const params = new URLSearchParams(q as Record<string, string>);
 
-        if (!res.ok) {
-          console.error ('KPIs API error:', res.status, await res.text());
-          setKpis(EMPTY);
-          return;
-        }
+        const response = await getJson<Kpis>('/kpis', params);
+        if (cancelled) return;
 
-        const json = await res.json();
-        setKpis({
-          revenue: Number(json.revenue) || 0,
-          orders: Number(json.orders) || 0,
-          aov: Number(json.aov) || 0,
-          units: Number(json.units) || 0,
-          customers: Number(json.customers) || 0,
-        });
-      } catch (err) {
-        if ((err as any).name !== 'AbortError') {
-          console.error('KPIs fetch failed:', err);
-        }
-        setKpis(EMPTY);
-      } finally {
-        setLoading(false);
-      }
-    }
+        setKpis(response);
+      } catch (e) {
+        if (cancelled) return;
 
-    run();
+        console.error('useKpis failed:', e);
 
-    return () => controller.abort();
-  }, [filter]);
+        // safe error message extraction
+        const msg =
+          e instanceof Error
+            ? e.message
+            : typeof e === 'string'
+            ? e
+            : 'Failed to load KPIs';
 
-  return { kpis, loading };
+        setError(msg);
+        setKpis(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [store?.id, loadingStore, storeError, filter, filterKey]);
+
+  return {
+    kpis,
+    loading: loadingStore || loading,
+    error: error ?? storeError ?? null,
+  };
 }
-

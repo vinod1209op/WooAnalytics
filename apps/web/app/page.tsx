@@ -32,7 +32,7 @@ export default function Page() {
 
   const { categories, coupons, loadingMeta } = useMetaFilters();
 
-  const { kpis, loading: loadingKpis } = useKpis(filter);
+  const { kpis, loading: loadingKpis, error: kpiError } = useKpis(filter);
 
   if (!hasMounted) return null;
 
