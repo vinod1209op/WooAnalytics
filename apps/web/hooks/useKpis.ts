@@ -26,6 +26,7 @@ export function useKpis(filter: FilterState) {
       setLoading(false);
       return;
     }
+    const storeId = store.id
 
     let cancelled = false;
 
@@ -34,7 +35,7 @@ export function useKpis(filter: FilterState) {
         setLoading(true);
         setError(null);
 
-        const q = buildFilterParams(filter, store.id);
+        const q = buildFilterParams(filter, storeId);
         const params = new URLSearchParams(q as Record<string, string>);
 
         const response = await getJson<KpiSummary>('/kpis', params);
