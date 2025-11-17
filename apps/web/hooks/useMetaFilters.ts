@@ -23,6 +23,7 @@ export function useMetaFilters() {
       setLoadingMeta(false);
       return;
     }
+    const storeId = store.id;
 
     let cancelled = false;
 
@@ -32,7 +33,7 @@ export function useMetaFilters() {
         setError(null);
 
         const params = new URLSearchParams();
-        params.set("storeId", store.id);
+        params.set("storeId", storeId);
 
         const [cats, coups] = await Promise.all([
           getJson<string[]>("/meta/categories", params),

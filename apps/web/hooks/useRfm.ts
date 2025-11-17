@@ -50,6 +50,7 @@ export function useRfmHeatmap(filter: FilterState): UseRfmHeatmapResult {
       setLoading(false);
       return;
     }
+    const storeId = store.id;
 
     let cancelled = false;
 
@@ -59,7 +60,7 @@ export function useRfmHeatmap(filter: FilterState): UseRfmHeatmapResult {
         setError(null);
 
         const params = new URLSearchParams();
-        params.set("storeId", store.id);
+        params.set("storeId", storeId);
 
         // ✅ ONLY DATE FILTER – ignore category/coupon
         const from = filter.date?.from;

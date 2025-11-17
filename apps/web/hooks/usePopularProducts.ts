@@ -30,6 +30,7 @@ export function usePopularProducts(filter: FilterState) {
       setLoading(false);
       return;
     }
+    const storeId = store.id;
 
     let cancelled = false;
 
@@ -39,7 +40,7 @@ export function usePopularProducts(filter: FilterState) {
         setError(null);
 
         const params = new URLSearchParams();
-        params.set("storeId", store.id);
+        params.set("storeId", storeId);
 
         const from = filter.date?.from;
         const to = filter.date?.to;

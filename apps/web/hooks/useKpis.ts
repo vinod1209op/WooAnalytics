@@ -26,7 +26,7 @@ export function useKpis(filter: FilterState) {
       setLoading(false);
       return;
     }
-    const storeId = store.id
+    const storeId = store.id;
 
     let cancelled = false;
 

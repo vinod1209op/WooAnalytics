@@ -24,6 +24,7 @@ export function useSalesSeries(filter: FilterState) {
       setLoading(false);
       return;
     }
+    const storeId = store.id;
 
     let cancelled = false;
 
@@ -33,7 +34,7 @@ export function useSalesSeries(filter: FilterState) {
         setError(null);
 
         // Build query params (storeId + date range + type/category/coupon)
-        const q = buildFilterParams(filter, store.id);
+        const q = buildFilterParams(filter, storeId);
         const params = new URLSearchParams(q as Record<string, string>);
 
         const data = await getJson<{ sales: SalesPoint[] }>(
