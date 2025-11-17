@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response } from 'express';
 import cors from "cors";
 import morgan from "morgan";
 
@@ -9,6 +9,7 @@ import metaRouter from "./routes/meta";
 import productsRouter from "./routes/products";
 import segmentsRouter from "./routes/segments";
 import rfmRouter from "./routes/rfm";
+import { request } from 'node:http';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -18,7 +19,7 @@ app.use(morgan("dev"));
 app.use(express.json());
 
 // health
-app.get("/health", (req, res) => {
+app.get("/health", (req: Request, res: Response ) => {
   res.json({ status: "ok" });
 });
 

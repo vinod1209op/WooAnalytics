@@ -1,10 +1,10 @@
 // apps/api/routes/kpis.ts
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { prisma } from '../prisma';
 
 const router = Router();
 
-router.get('/', async(req, res) => {
+router.get('/', async(req: Request, res: Response) => {
     try{
         const { storeId, type = 'date', from, to, category, coupon } = req.query;
 

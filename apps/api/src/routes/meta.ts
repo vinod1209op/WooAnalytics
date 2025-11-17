@@ -1,10 +1,10 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { prisma } from '../prisma';
 
 const router = Router();
 
 // GET /meta/categories
-router.get('/categories', async (req, res) => {
+router.get('/categories', async (req: Request, res: Response) => {
   try {
     const { storeId } = req.query;
 
