@@ -1,22 +1,80 @@
 // hooks/usePopularProducts.ts
-'use client';
+"use client";
 
-import { useState } from 'react';
-import type { Product } from '@/types/product';
+import { useEffect, useState } from "react";
+import type { Product } from "@/types/product";
+import type { FilterState } from "@/components/filters/filter-bar";
+import { getJson } from "@/lib/api";
+import { useStore } from "@/providers/store-provider";
 
-const MOCK_PRODUCTS: Product[] = [
-  { id: 1, name: 'FUN GUY Mushroom Gummies', sku: null, price: 75, total_sales: 919 },
-  { id: 2, name: 'MCRDSE Gummies', sku: null, price: 35, total_sales: 774 },
-  { id: 3, name: 'FUN GUY Chocolates', sku: null, price: 75, total_sales: 751 },
-  { id: 4, name: 'Awaken Dark Chocolate', sku: null, price: 55.5, total_sales: 653 },
-  { id: 5, name: 'Bliss Dose', sku: null, price: 90, total_sales: 549 },
-];
+/**
+ * Popular products hook.
+ * - Only the DATE RANGE controls it.
+ * - Category / coupon filters are ignored in dependencies,
+ *   extra params from buildFilterParams are harmless.
+ */
+export function usePopularProducts(filter: FilterState) {
+  const { store, loading: loadingStore, error: storeError } = useStore();
 
-export function usePopularProducts() {
-  const [data] = useState<Product[]>(MOCK_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // wait until store is loaded
+    if (loadingStore) return;
+
+    if (!store?.id) {
+      setError(storeError || "No store configured");
+      setProducts([]);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const params = new URLSearchParams();
+        params.set("storeId", store.id);
+
+        const from = filter.date?.from;
+        const to = filter.date?.to;
+
+        if (from) params.set("from", from.toISOString().slice(0, 10));
+        if (to) params.set("to", to.toISOString().slice(0, 10));
+
+        const data = await getJson<Product[]>("/products/popular", params);
+
+        if (cancelled) return;
+        setProducts(data ?? []);
+      } catch (err) {
+        if (cancelled) return;
+        console.error("usePopularProducts error:", err);
+        const msg =
+          err instanceof Error
+            ? err.message
+            : typeof err === "string"
+            ? err
+            : "Failed to load popular products";
+        setError(msg);
+        setProducts([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [store?.id, loadingStore, storeError, filter.date?.from, filter.date?.to, filter]);
 
   return {
-    products: data,
-    loading: false,
+    products,
+    loading: loadingStore || loading,
+    error: error ?? storeError ?? null,
   };
 }

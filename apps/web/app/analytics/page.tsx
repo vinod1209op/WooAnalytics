@@ -8,11 +8,11 @@ import { useMetaFilters } from '@/hooks/useMetaFilters';
 
 import { useSalesSeries } from '@/hooks/useSalesSeries';
 import { useSegments } from '@/hooks/useSegments';
-import { useRfm } from '@/hooks/useRfm';
+import { useRfmHeatmap } from '@/hooks/useRfm';
 
 import { RevenueChart } from '@/components/analytics/revenue-chart';
 import { OrdersChart } from '@/components/analytics/orders-chart';
-import { RfmChart } from '@/components/analytics/rfm-chart';
+import { RfmHeatmap } from '@/components/analytics/rfm-chart';
 import { SegmentsChart } from '@/components/analytics/segments-chart';
 
 const pad =
@@ -38,9 +38,9 @@ export default function AnalyticsPage() {
   });
 
   const { categories, coupons, loadingMeta } = useMetaFilters();
-  const { sales, loading: loadingSales } = useSalesSeries(filter);
+  const { sales, loading: loadingSales, error: salesError } = useSalesSeries(filter);
   const { segments, loading: loadingSegments } = useSegments(filter);
-  const { rfm, loading: loadingRfm } = useRfm(filter);
+  const { cells, loading: loadingRfm } = useRfmHeatmap(filter);
 
   if (!hasMounted) return null;
 
@@ -68,14 +68,14 @@ export default function AnalyticsPage() {
           <div className={`${card} ${pad} min-w-0`}>
             <h2 className={sectionTitle}>Revenue Trend</h2>
             <div className="mt-4 h-80 w-full">
-              <RevenueChart data={sales} loading={loadingSales} />
+              <RevenueChart data={sales} loading={loadingSales} error={salesError} />
             </div>
           </div>
 
           <div className={`${card} ${pad} min-w-0`}>
             <h2 className={sectionTitle}>Orders Trend</h2>
             <div className="mt-4 h-80 w-full">
-              <OrdersChart data={sales} loading={loadingSales} />
+              <OrdersChart data={sales} loading={loadingSales} error={salesError} />
             </div>
           </div>
         </div>
@@ -85,7 +85,7 @@ export default function AnalyticsPage() {
           <div className={`${card} ${pad} min-w-0`}>
             <h2 className={sectionTitle}>RFM Distribution</h2>
             <div className="mt-4 h-80 w-full">
-              <RfmChart data={rfm} loading={loadingRfm} />
+              <RfmHeatmap data={cells} loading={loadingRfm} />
             </div>
           </div>
 

@@ -9,6 +9,7 @@ import { FilterBar, FilterState } from '@/components/filters/filter-bar';
 import { useKpis } from '@/hooks/useKpis';
 import { useHasMounted } from '@/hooks/useHasMounted';
 import { useMetaFilters } from '@/hooks/useMetaFilters';
+import { usePopularProducts } from '@/hooks/usePopularProducts';
 
 const pad =
   'p-5 md:p-6';
@@ -72,7 +73,7 @@ export default function Page() {
 
       {/* Main grid: popular products */}
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
-        <PopularProductsTable />
+        <PopularProductsTable  filter={filter} />
       </section>
     </div>
   );

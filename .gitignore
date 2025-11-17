@@ -67,3 +67,5 @@ utm.json
 apps/web/hooks/store-context.ts
 apps/meta.ts.txt
 apps/api.ts.txt
+apps/products.ts.txt
+apps/usePopularProducts.ts.txt

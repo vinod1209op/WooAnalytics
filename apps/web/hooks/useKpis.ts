@@ -4,20 +4,13 @@ import { useEffect, useState } from 'react';
 import type { FilterState } from '@/components/filters/filter-bar';
 import { getJson, buildFilterParams } from '@/lib/api';
 import { useStore } from '@/providers/store-provider';
-
-export interface Kpis {
-  revenue: number;
-  orders: number;
-  aov: number;
-  units: number;
-  customers: number;
-}
+import { KpiSummary } from '@/types/kpi';
 
 export function useKpis(filter: FilterState) {
   const { store, loading: loadingStore, error: storeError } = useStore();
 
-  const [kpis, setKpis] = useState<Kpis | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [kpis, setKpis] = useState<KpiSummary | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Create a stable dependency instead of JSON.stringify
@@ -44,7 +37,7 @@ export function useKpis(filter: FilterState) {
         const q = buildFilterParams(filter, store.id);
         const params = new URLSearchParams(q as Record<string, string>);
 
-        const response = await getJson<Kpis>('/kpis', params);
+        const response = await getJson<KpiSummary>('/kpis', params);
         if (cancelled) return;
 
         setKpis(response);

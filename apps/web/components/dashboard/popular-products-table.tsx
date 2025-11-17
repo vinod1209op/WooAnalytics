@@ -1,9 +1,15 @@
+// web/app/components/dashboard/popular-products-table.tsx
 'use client';
 
 import { usePopularProducts } from '@/hooks/usePopularProducts';
+import type { FilterState } from '@/components/filters/filter-bar';
 
-export function PopularProductsTable() {
-  const { products, loading } = usePopularProducts();
+type PopularProductsTableProps = {
+  filter: FilterState;
+};
+
+export function PopularProductsTable({ filter }: PopularProductsTableProps) {
+  const { products, loading, error } = usePopularProducts(filter);
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/70">
@@ -17,6 +23,12 @@ export function PopularProductsTable() {
           </p>
         </div>
       </header>
+
+      {error && (
+        <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-950/40">
+          {error}
+        </div>
+      )}
 
       {loading ? (
         <div className="h-32 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
