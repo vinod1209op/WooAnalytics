@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { prisma } from "../prisma";
 
 const router = Router();
@@ -13,7 +13,22 @@ const router = Router();
  *
  * Returns top 10 products by units sold (total_sales) in the date range.
  */
-router.get("/popular", async (req, res) => {
+
+ type ProductGroup = {
+  productId: number | null;
+  _sum: {
+    quantity: number | null;
+  };
+};
+
+type ProductSummary = {
+  id: number;
+  name: string | null;
+  sku: string | null;
+  price: number | null;
+};
+
+router.get("/popular", async (req: Request, res: Response) => {
   try {
     console.log("GET /products/popular query:", req.query);
     const { storeId, from, to } = req.query as {
@@ -95,12 +110,16 @@ router.get("/popular", async (req, res) => {
       },
     });
 
+
+
     // Map by id for easy lookup
-    const productsById = new Map(products.map((p) => [p.id, p]));
+    const productsById = new Map<number, ProductSummary>(
+      products.map((p) => [p.id, p])
+    );
 
     // Shape the response for the frontend table
     const result = groups
-      .map((g) => {
+      .map((g: ProductGroup) => {
         // Guard against null productId
         if (g.productId === null) return null;
 

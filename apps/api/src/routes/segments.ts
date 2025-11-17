@@ -1,5 +1,5 @@
 // apps/api/routes/segments.ts
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { prisma } from "../prisma";
 
 const router = Router();
@@ -21,7 +21,7 @@ type SegmentPoint = {
  * basic RFM metrics per customer, then buckets them into segments
  * and returns counts per segment.
  */
-router.get("/", async (req, res) => {
+router.get("/", async (req: Request, res: Response) => {
   try {
     const { storeId, from, to } = req.query as {
       storeId?: string;

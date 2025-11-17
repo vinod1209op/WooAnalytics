@@ -1,5 +1,5 @@
 // api/src/routes/customers.ts
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { prisma } from "../prisma";
 
 const router = Router();
@@ -13,7 +13,22 @@ const router = Router();
  *
  * Returns one row per customer with RFM metrics.
  */
-router.get("/", async (req, res) => {
+type CustomerGroup = {
+  customerId: number | null;
+  _count: { _all: number };
+  _sum: { total: number | null };
+  _max: { createdAt: Date | null };
+};
+
+type CustomerSummary = {
+  id: number;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
+router.get("/", async (req: Request, res: Response) => {
   try {
     const { storeId, from, to } = req.query as {
       storeId?: string;
@@ -93,10 +108,12 @@ router.get("/", async (req, res) => {
       },
     });
 
-    const customersById = new Map(customers.map((c) => [c.id, c]));
+    const customersById = new Map<number, CustomerSummary>(
+      customers.map((c) => [c.id, c])
+    );
 
     const result = groups
-      .map((g) => {
+      .map((g: CustomerGroup) => {
         if (g.customerId === null) return null;
         const c = customersById.get(g.customerId);
         if (!c) return null;

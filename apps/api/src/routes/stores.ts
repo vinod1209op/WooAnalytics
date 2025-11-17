@@ -1,11 +1,11 @@
 // apps/api/src/routes/stores.ts
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { prisma } from '../prisma';
 
 const router = Router();
 
 // GET /stores -> list all (for dropdowns, etc.)
-router.get('/', async (_req, res) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
     const stores = await prisma.store.findMany({
       select: { id: true, name: true, wooBaseUrl: true, wooKey: true, wooSecret: true, createdAt: true },
@@ -19,7 +19,7 @@ router.get('/', async (_req, res) => {
 });
 
 // OPTIONAL: GET /stores/default -> whichever is marked default
-router.get('/default', async (_req, res) => {
+router.get('/default', async (req: Request, res: Response) => {
   try {
     // Option A: you add a boolean `isDefault` to Store model
     const store = await prisma.store.findFirst({
