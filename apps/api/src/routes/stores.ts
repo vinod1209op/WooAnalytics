@@ -1,6 +1,6 @@
 // apps/api/src/routes/stores.ts
 import { Router, Request, Response } from 'express';
-import { prisma } from '../prisma';
+import { prisma } from './prisma';
 
 const router = Router();
 
