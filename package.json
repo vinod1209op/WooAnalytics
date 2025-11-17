@@ -4,7 +4,10 @@
 	"scripts": {
 		"dev:web": "cd apps/web && pnpm dev",
 		"dev:api": "cd apps/api && pnpm dev",
-		"start": "pnpm dev:api"
+		"start": "pnpm dev:api",
+		"api:build": "pnpm --filter './apps/api' run build",
+		"api:start": "pnpm --filter './apps/api' run start",
+		"api:dev": "pnpm --filter './apps/api' run dev"
 	},
 	"devDependencies": {
 		"@types/node": "^24.10.1",
@@ -15,6 +18,7 @@
 		"tailwindcss": "^4.1.17"
 	},
 	"dependencies": {
-		"@prisma/client": "^6.19.0"
+		"@prisma/client": "^6.19.0",
+		"@upstash/redis": "^1.35.6"
 	}
 }
