@@ -60,7 +60,7 @@ export function RevenueChart({ data, loading, error }: RevenueChartProps) {
               tickMargin={4}
             />
             <Tooltip
-              formatter={(value: any, name: string) => {
+              formatter={(value: number, name: string) => {
                 if (name === "revenue") return [fmtMoney(value as number), "Revenue"];
                 if (name === "orders") return [value as number, "Orders"];
                 return [value, name];

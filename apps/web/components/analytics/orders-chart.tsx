@@ -59,7 +59,7 @@ export function OrdersChart({ data, loading, error }: OrdersChartProps) {
               allowDecimals={false}
             />
             <Tooltip
-              formatter={(value: any) => [value as number, "Orders"]}
+              formatter={(value: number) => [value as number, "Orders"]}
               labelFormatter={(label) => `Date: ${label}`}
             />
             <Area

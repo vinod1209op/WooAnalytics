@@ -1,12 +1,7 @@
 // web/components/analytics/rfm-chart.tsx
 'use client';
 
-export type RfmHeatmapCell = {
-  r: number;       // recency bucket
-  f: number;       // frequency bucket
-  m: number;       // monetary bucket (if you have it)
-  count: number;   // number of customers in this cell
-};
+import { RfmHeatmapCell } from "@/types/rfmCell";
 
 type RfmHeatmapProps = {
   data: RfmHeatmapCell[];
@@ -34,13 +29,13 @@ export function RfmHeatmap({ data, loading }: RfmHeatmapProps) {
   }
 
   // Build simple grid by R & F buckets.
-  const rValues = Array.from(new Set(data.map((c) => c.r))).sort((a, b) => a - b);
-  const fValues = Array.from(new Set(data.map((c) => c.f))).sort((a, b) => a - b);
+  const rValues = Array.from(new Set(data.map((c) => c.rScore))).sort((a, b) => a - b);
+  const fValues = Array.from(new Set(data.map((c) => c.fScore))).sort((a, b) => a - b);
 
   const maxCount = data.reduce((max, c) => Math.max(max, c.count), 0) || 1;
 
-  const getCell = (r: number, f: number) =>
-    data.find((c) => c.r === r && c.f === f) || { r, f, m: 0, count: 0 };
+  const getCell = (rScore: number, fScore: number) =>
+    data.find((c) => c.rScore === rScore && c.fScore === fScore) || { rScore, fScore, totalMonetary: 0, count: 0 };
 
   const intensity = (count: number) => count / maxCount;
 
@@ -86,7 +81,7 @@ export function RfmHeatmap({ data, loading }: RfmHeatmapProps) {
                     >
                       <div>{cell.count}</div>
                       <div className="mt-0.5 opacity-70">
-                        R{cell.r} · F{cell.f}
+                        R{cell.rScore} · F{cell.fScore}
                       </div>
                     </div>
                   );

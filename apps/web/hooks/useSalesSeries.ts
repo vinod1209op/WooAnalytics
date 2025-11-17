@@ -37,7 +37,7 @@ export function useSalesSeries(filter: FilterState) {
         const params = new URLSearchParams(q as Record<string, string>);
 
         const data = await getJson<{ sales: SalesPoint[] }>(
-          "/sales-series",
+          "/sales",
           params
         );
 

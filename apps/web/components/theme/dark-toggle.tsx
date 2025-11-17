@@ -1,16 +1,21 @@
 'use client';
 
 import { useTheme } from 'next-themes';
+import { useHasMounted } from '@/hooks/useHasMounted';
 
 export default function DarkToggle() {
   const { theme, systemTheme, setTheme } = useTheme();
   const resolvedTheme = theme ==='system' ?  systemTheme: theme;
+  const hasMounted = useHasMounted();
+  
   
   if (typeof window === 'undefined' || !resolvedTheme) {
     return null;
   }
 
   const isDark = resolvedTheme === 'dark';
+
+  if (!hasMounted) return null;
 
   return (
     <button
