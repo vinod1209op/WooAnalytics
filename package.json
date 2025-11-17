@@ -5,10 +5,11 @@
 		"dev:web": "cd apps/web && pnpm dev",
 		"dev:api": "cd apps/api && pnpm dev",
 		"start": "pnpm dev:api",
-		"api:build": "pnpm --filter './apps/api' run build",
-		"api:start": "pnpm --filter './apps/api' run start",
-		"api:dev": "pnpm --filter './apps/api' run dev"
-	},
+		"api:build": "cd apps/api && pnpm build",
+  		"api:start": "cd apps/api && node dist/index.js",
+    	"api:dev": "cd apps/api && pnpm dev"
+
+	},   
 	"devDependencies": {
 		"@types/node": "^24.10.1",
 		"autoprefixer": "^10.4.22",
@@ -20,5 +21,5 @@
 	"dependencies": {
 		"@prisma/client": "^6.19.0",
 		"@upstash/redis": "^1.35.6"
-	}
+	}	
 }
