@@ -12,5 +12,5 @@
     "outDir": "dist",
     "noImplicitAny": false
   },
-  "include": ["src"]
+  "include": ["src", "src/prisma.ts"]
 }
