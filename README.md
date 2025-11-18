@@ -54,7 +54,7 @@ Next.js dashboard + Express API + Inngest-powered worker for syncing WooCommerce
 
 ## Local Development Workflow
 
-### 1. Worker + Inngest
+### 1. Worker
 
 ```bash
 # Terminal 1 – start worker (handles /api/inngest)
