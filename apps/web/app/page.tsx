@@ -9,7 +9,6 @@ import { FilterBar, FilterState } from '@/components/filters/filter-bar';
 import { useKpis } from '@/hooks/useKpis';
 import { useHasMounted } from '@/hooks/useHasMounted';
 import { useMetaFilters } from '@/hooks/useMetaFilters';
-import { usePopularProducts } from '@/hooks/usePopularProducts';
 
 const pad =
   'p-5 md:p-6';
@@ -31,9 +30,9 @@ export default function Page() {
     };
   });
 
-  const { categories, coupons, loadingMeta } = useMetaFilters();
+  const { categories, coupons } = useMetaFilters();
 
-  const { kpis, loading: loadingKpis, error: kpiError } = useKpis(filter);
+  const { kpis } = useKpis(filter);
 
   if (!hasMounted) return null;
 

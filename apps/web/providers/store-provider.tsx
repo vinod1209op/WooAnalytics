@@ -41,8 +41,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
         const data = await res.json();
         if (!cancelled) setStore(data);
-      } catch (err: any) {
-        if (!cancelled) setError(err.message ?? 'Error');
+      } catch (err) {
+        if (!cancelled) {
+          const message = err instanceof Error ? err.message : 'Error';
+          setError(message);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }

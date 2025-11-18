@@ -18,5 +18,5 @@
 	"dependencies": {
 		"@prisma/client": "^6.19.0",
 		"@upstash/redis": "^1.35.6"
-	}	
+	}
 }

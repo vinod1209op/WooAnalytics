@@ -12,11 +12,11 @@ router.get('/categories', async (req: Request, res: Response) => {
       return res.status(400).json({ error: "No storeId"})
     }
 
-    const categories = await prisma.product.findMany({
+    const categories = await prisma.productCategory.findMany({
       where: { storeId },
       select: { name: true },
       distinct: ['id'],
-      orderBy: { createdAt: 'asc'},
+      orderBy: { name: 'asc'},
     });
 
     res.json(categories.map(c => c.name));

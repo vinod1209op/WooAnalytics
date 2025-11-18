@@ -37,7 +37,7 @@ export default function AnalyticsPage() {
     };
   });
 
-  const { categories, coupons, loadingMeta } = useMetaFilters();
+  const { categories, coupons } = useMetaFilters();
   const { sales, loading: loadingSales, error: salesError } = useSalesSeries(filter);
   const { segments, loading: loadingSegments } = useSegments(filter);
   const { cells, loading: loadingRfm } = useRfmHeatmap(filter);
