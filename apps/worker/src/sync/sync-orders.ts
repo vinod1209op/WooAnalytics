@@ -35,7 +35,6 @@ export async function syncOrders(
 
   for (const order of res.data ?? []) {
     try {
-      ctx.logger("Syncing order", { wooId: order.id ?? "unknown" });
       await upsertOrder(ctx, order);
       trackRemote(remoteDaily, order);
       processed++;
@@ -282,14 +281,34 @@ function extractUtm(meta: any[]) {
     if (!entry?.key) continue;
     lookup.set(String(entry.key).toLowerCase(), String(entry.value ?? ""));
   }
+
+  const source =
+    lookup.get("utm_source") ??
+    lookup.get("_utm_source") ??
+    lookup.get("_wc_order_attribution_utm_source");
+  const medium =
+    lookup.get("utm_medium") ??
+    lookup.get("_utm_medium") ??
+    lookup.get("_wc_order_attribution_utm_medium");
+  const campaign =
+    lookup.get("utm_campaign") ??
+    lookup.get("_utm_campaign") ??
+    lookup.get("_wc_order_attribution_utm_campaign");
+  const term =
+    lookup.get("utm_term") ??
+    lookup.get("_utm_term") ??
+    lookup.get("_wc_order_attribution_utm_term");
+  const content =
+    lookup.get("utm_content") ??
+    lookup.get("_utm_content") ??
+    lookup.get("_wc_order_attribution_utm_content");
+
   return {
-    utmSource: lookup.get("utm_source") ?? lookup.get("_utm_source") ?? null,
-    utmMedium: lookup.get("utm_medium") ?? lookup.get("_utm_medium") ?? null,
-    utmCampaign:
-      lookup.get("utm_campaign") ?? lookup.get("_utm_campaign") ?? null,
-    utmTerm: lookup.get("utm_term") ?? lookup.get("_utm_term") ?? null,
-    utmContent:
-      lookup.get("utm_content") ?? lookup.get("_utm_content") ?? null,
+    utmSource: source ?? null,
+    utmMedium: medium ?? null,
+    utmCampaign: campaign ?? null,
+    utmTerm: term ?? null,
+    utmContent: content ?? null,
   };
 }
 

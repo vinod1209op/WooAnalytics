@@ -52,3 +52,6 @@ coverage/
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+Information/
+apps/worker/woo-entities-all-routes.xlsx
+apps/worker/src/scripts/discover-all-entities.ts
