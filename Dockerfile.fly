@@ -3,8 +3,8 @@ FROM node:18-bullseye
 
 WORKDIR /app
 
-# Install pnpm globally
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install pnpm globally (pinned to avoid registry hiccups with corepack)
+RUN npm install -g pnpm@8.15.8
 
 # Copy workspace manifests
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
