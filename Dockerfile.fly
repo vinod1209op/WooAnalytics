@@ -1,0 +1,25 @@
+# Lightweight worker image for Fly.io
+FROM node:18-bullseye
+
+WORKDIR /app
+
+# Install pnpm globally
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy workspace manifests
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/worker/package.json apps/worker/package.json
+
+# Install deps (workspace-aware)
+RUN pnpm install --frozen-lockfile
+
+# Copy source
+COPY apps ./apps
+COPY prisma ./prisma
+
+# Build worker
+RUN pnpm --filter @wooanalytics/worker build
+
+EXPOSE 3333
+
+CMD ["pnpm", "--filter", "@wooanalytics/worker", "start"]

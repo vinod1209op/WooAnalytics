@@ -93,8 +93,9 @@ pnpm dev
   - Redeploy both after updating env vars.
 
 - **Worker (Inngest):**
-  - Host the worker server somewhere reachable (Vercel serverless, Fly.io, Render, etc.).
-  - Point the Inngest project’s Serve URL at `https://<worker-domain>/api/inngest`.
+  - Host the worker somewhere with a longer timeout (Fly.io recommended; `Dockerfile.fly`/`fly.toml` provided).
+  - Deploy via `fly launch`/`fly deploy`, expose port 3333, and set env vars (`DATABASE_URL`, Woo creds, Inngest keys).
+  - Point the Inngest Serve URL at `https://<your-fly-app>.fly.dev/api/inngest`.
   - Configure cron / manual jobs inside Inngest as needed.
 
 ## Helpful Scripts
