@@ -83,11 +83,13 @@ export async function syncCustomers(ctx: SyncContext): Promise<SyncStats> {
       }
 
       processed++;
+      renderProgress("Customers", processed);
     } catch (err: any) {
       warnings.push(err?.message ?? "Unknown error syncing customer");
     }
   }
 
+  finishProgress();
   ctx.logger("Customers synced", { processed, warnings: warnings.length });
 
   return { entity: "customers", processed, warnings };
@@ -95,4 +97,16 @@ export async function syncCustomers(ctx: SyncContext): Promise<SyncStats> {
 
 function fallbackEmail(storeId: string, id?: number | string) {
   return `guest-${storeId}-${id ?? Date.now()}@wooanalytics.local`;
+}
+
+function renderProgress(label: string, count: number) {
+  if (process.stdout?.write) {
+    process.stdout.write(`\r${label} processed: ${count.toString().padEnd(8, " ")}`);
+  }
+}
+
+function finishProgress() {
+  if (process.stdout?.write) {
+    process.stdout.write("\n");
+  }
 }

@@ -38,6 +38,7 @@ export async function syncOrders(
       await upsertOrder(ctx, order);
       trackRemote(remoteDaily, order);
       processed++;
+      renderProgress("Orders", processed);
     } catch (err: any) {
       warnings.push(
         `Order ${order.id ?? "unknown"}: ${err?.message ?? "Unknown error"}`
@@ -45,6 +46,7 @@ export async function syncOrders(
     }
   }
 
+  finishProgress();
   ctx.logger("Orders synced", { processed, warnings: warnings.length });
 
   return {
@@ -335,4 +337,16 @@ function trackRemote(
   bucket.revenue += Number(order.total ?? 0);
   bucket.orders += 1;
   map.set(day, bucket);
+}
+
+function renderProgress(label: string, count: number) {
+  if (process.stdout?.write) {
+    process.stdout.write(`\r${label} processed: ${count.toString().padEnd(8, " ")}`);
+  }
+}
+
+function finishProgress() {
+  if (process.stdout?.write) {
+    process.stdout.write("\n");
+  }
 }

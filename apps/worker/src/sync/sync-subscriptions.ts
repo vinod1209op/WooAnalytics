@@ -61,11 +61,13 @@ export async function syncSubscriptions(ctx: SyncContext): Promise<SyncStats> {
         },
       });
       processed++;
+      renderProgress("Subscriptions", processed);
     } catch (err: any) {
       warnings.push(err?.message ?? "Unknown subscription error");
     }
   }
 
+  finishProgress();
   ctx.logger("Subscriptions synced", { processed, warnings: warnings.length });
 
   return { entity: "subscriptions", processed, warnings };
@@ -117,4 +119,16 @@ async function ensureCustomer(ctx: SyncContext, sub: any) {
 
   const created = await prisma.customer.create({ data: baseData });
   return created.id;
+}
+
+function renderProgress(label: string, count: number) {
+  if (process.stdout?.write) {
+    process.stdout.write(`\r${label} processed: ${count.toString().padEnd(8, " ")}`);
+  }
+}
+
+function finishProgress() {
+  if (process.stdout?.write) {
+    process.stdout.write("\n");
+  }
 }

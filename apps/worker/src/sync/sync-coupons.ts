@@ -46,12 +46,26 @@ export async function syncCoupons(ctx: SyncContext): Promise<SyncStats> {
         },
       });
       processed++;
+      renderProgress("Coupons", processed);
     } catch (err: any) {
       warnings.push(err?.message ?? "Unknown coupon error");
     }
   }
 
+  finishProgress();
   ctx.logger("Coupons synced", { processed, warnings: warnings.length });
 
   return { entity: "coupons", processed, warnings };
+}
+
+function renderProgress(label: string, count: number) {
+  if (process.stdout?.write) {
+    process.stdout.write(`\r${label} processed: ${count.toString().padEnd(8, " ")}`);
+  }
+}
+
+function finishProgress() {
+  if (process.stdout?.write) {
+    process.stdout.write("\n");
+  }
 }

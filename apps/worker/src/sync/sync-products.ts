@@ -55,11 +55,13 @@ export async function syncProducts(ctx: SyncContext): Promise<SyncStats> {
 
       await syncProductCategories(ctx, record.id, product.categories ?? []);
       processed++;
+      renderProgress("Products", processed);
     } catch (err: any) {
       warnings.push(err?.message ?? "Unknown error syncing product");
     }
   }
 
+  finishProgress();
   ctx.logger("Products synced", { processed, warnings: warnings.length });
 
   return { entity: "products", processed, warnings };
@@ -148,4 +150,16 @@ function safeNumber(value: any): number | undefined {
   if (value === null || value === undefined || value === "") return undefined;
   const num = Number(value);
   return Number.isNaN(num) ? undefined : num;
+}
+
+function renderProgress(label: string, count: number) {
+  if (process.stdout?.write) {
+    process.stdout.write(`\r${label} processed: ${count.toString().padEnd(8, " ")}`);
+  }
+}
+
+function finishProgress() {
+  if (process.stdout?.write) {
+    process.stdout.write("\n");
+  }
 }
