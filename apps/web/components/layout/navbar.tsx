@@ -14,7 +14,7 @@ export function Navbar() {
 
   return (
     <header className="border-b bg-white/60 backdrop-blur dark:bg-slate-950/60">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
+      <div className="mx-auto flex h-14 max-w-[1420px] items-center justify-between px-4 sm:px-6">
         {/* Left: title */}
         <Link href="/" className="text-lg font-bold tracking-tight">
           MCRDSE Analytics

@@ -10,7 +10,7 @@ export function buildFilterParams(filter: FilterState, storeId: string): Record<
   params.storeId = storeId;
   params.type = filter.type;
 
-  if (filter.type === 'date' && filter.date?.from && filter.date?.to) {
+  if (filter.date?.from && filter.date?.to) {
     params.from = filter.date.from.toISOString().slice(0, 10);
     params.to = filter.date.to.toISOString().slice(0, 10);
   }

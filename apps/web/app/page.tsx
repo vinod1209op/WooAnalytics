@@ -61,13 +61,7 @@ export default function Page() {
 
       {/* KPI row */}
       <section className={`${card} ${pad}`}>
-        <KpiRow
-          revenue={kpis?.revenue ?? 0}
-          orders={kpis?.orders ?? 0}
-          aov={kpis?.aov ?? 0}
-          units={kpis?.units ?? 0}
-          customers={kpis?.customers ?? 0}
-        />
+        {kpis && <KpiRow {...kpis} />}
       </section>
 
       {/* Main grid: popular products */}

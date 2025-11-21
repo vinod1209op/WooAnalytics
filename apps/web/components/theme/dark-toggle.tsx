@@ -24,9 +24,9 @@ export default function DarkToggle() {
       className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
     >
       {isDark ? (
-       <> 🌙 <span>Dark</span> </>
+       <> 🌙 </>
       ):(
-       <> ☀️ <span>Light</span></> 
+       <> ☀️ </> 
       )}
     </button>
   );

@@ -37,6 +37,14 @@ router.get('/', async(req: Request, res: Response) => {
         return res.status(400).json({ error: 'Invalid from/to date' });
         }
 
+        // previous period range (same length, immediately before current)
+        const diffMs = toDate.getTime() - fromDate.getTime();
+        const prevTo = new Date(fromDate);
+        prevTo.setDate(prevTo.getDate() - 1);
+        prevTo.setHours(23, 59, 59, 999);
+        const prevFrom = new Date(prevTo.getTime() - diffMs);
+        prevFrom.setHours(0, 0, 0, 0);
+
         // ----- 2) Base where for orders -----
         const whereOrders: any = {
         storeId,
@@ -44,6 +52,14 @@ router.get('/', async(req: Request, res: Response) => {
             gte: fromDate,
             lte: toDate,
         },
+        };
+
+        const prevWhereOrders: any = {
+          storeId,
+          createdAt: {
+            gte: prevFrom,
+            lte: prevTo,
+          },
         };
 
         // Category filter -> orders that have items with products in that category
@@ -61,6 +77,8 @@ router.get('/', async(req: Request, res: Response) => {
             },
             },
         };
+
+        prevWhereOrders.items = whereOrders.items;
         }
 
         // Coupon filter -> orders that used that coupon code
@@ -72,12 +90,25 @@ router.get('/', async(req: Request, res: Response) => {
             },
             },
         };
+
+        prevWhereOrders.coupons = whereOrders.coupons;
         }
         // ----- 3) Run aggregates in parallel -----
-        const [agg, itemsAgg, customers] = await Promise.all([
+        const [
+          agg,
+          itemsAgg,
+          customers,
+          refundsAgg,
+          newCustomerGroups,
+          prevAgg,
+          prevItemsAgg,
+          prevCustomers,
+          prevRefundsAgg,
+          prevNewCustomerGroups,
+        ] = await Promise.all([
         prisma.order.aggregate({
             _count: { _all: true },
-            _sum: { total: true },
+            _sum: { total: true, discountTotal: true, shippingTotal: true, taxTotal: true },
             where: whereOrders,
         }),
         prisma.orderItem.aggregate({
@@ -88,17 +119,93 @@ router.get('/', async(req: Request, res: Response) => {
             where: whereOrders,
             select: { customerId: true },
         }),
+        prisma.refund.aggregate({
+            _sum: { amount: true },
+            where: {
+              storeId,
+              createdAt: {
+                gte: fromDate,
+                lte: toDate,
+              },
+            },
+        }),
+        prisma.order.groupBy({
+          by: ["customerId"],
+          where: {
+            storeId,
+          },
+          _min: { createdAt: true },
+        }),
+        prisma.order.aggregate({
+          _count: { _all: true },
+          _sum: { total: true, discountTotal: true, shippingTotal: true, taxTotal: true },
+          where: prevWhereOrders,
+        }),
+        prisma.orderItem.aggregate({
+          _sum: { quantity: true },
+          where: { order: prevWhereOrders },
+        }),
+        prisma.order.findMany({
+          where: prevWhereOrders,
+          select: { customerId: true },
+        }),
+        prisma.refund.aggregate({
+          _sum: { amount: true },
+          where: {
+            storeId,
+            createdAt: {
+              gte: prevFrom,
+              lte: prevTo,
+            },
+          },
+        }),
+        prisma.order.groupBy({
+          by: ["customerId"],
+          where: {
+            storeId,
+          },
+          _min: { createdAt: true },
+        }),
         ]);
 
         const orders = agg._count._all || 0;
         const revenue = agg._sum.total || 0;
         const units = itemsAgg._sum.quantity || 0;
+        const discountTotal = agg._sum.discountTotal || 0;
+        const shippingTotal = agg._sum.shippingTotal || 0;
+        const taxTotal = agg._sum.taxTotal || 0;
+        const refunds = refundsAgg._sum.amount || 0;
 
         const uniqueCustomers = new Set(
         customers.map((c) => c.customerId).filter((id) => id != null)
         ).size;
 
         const aov = orders ? revenue / orders : 0;
+        const avgItemsPerOrder = orders ? units / orders : 0;
+
+        const newCustomers = newCustomerGroups.filter((g) => {
+          if (g.customerId === null || !g._min.createdAt) return false;
+          const firstOrder = g._min.createdAt;
+          return firstOrder >= fromDate && firstOrder <= toDate;
+        }).length;
+
+        const prevOrders = prevAgg._count._all || 0;
+        const prevRevenue = prevAgg._sum.total || 0;
+        const prevUnits = prevItemsAgg._sum.quantity || 0;
+        const prevDiscountTotal = prevAgg._sum.discountTotal || 0;
+        const prevShippingTotal = prevAgg._sum.shippingTotal || 0;
+        const prevTaxTotal = prevAgg._sum.taxTotal || 0;
+        const prevRefunds = prevRefundsAgg._sum.amount || 0;
+        const prevAov = prevOrders ? prevRevenue / prevOrders : 0;
+        const prevAvgItemsPerOrder = prevOrders ? prevUnits / prevOrders : 0;
+        const prevUniqueCustomers = new Set(
+          prevCustomers.map((c) => c.customerId).filter((id) => id != null)
+        ).size;
+        const prevNewCustomers = prevNewCustomerGroups.filter((g) => {
+          if (g.customerId === null || !g._min.createdAt) return false;
+          const firstOrder = g._min.createdAt;
+          return firstOrder >= prevFrom && firstOrder <= prevTo;
+        }).length;
 
         // ----- 4) Send payload -----
         res.json({
@@ -107,6 +214,27 @@ router.get('/', async(req: Request, res: Response) => {
         aov: Number(aov.toFixed(2)),
         units,
         customers: uniqueCustomers,
+        netRevenue: Number((revenue - refunds).toFixed(2)),
+        refunds: Number(refunds.toFixed(2)),
+        discounts: Number(discountTotal.toFixed(2)),
+        shipping: Number(shippingTotal.toFixed(2)),
+        tax: Number(taxTotal.toFixed(2)),
+        avgItemsPerOrder: Number(avgItemsPerOrder.toFixed(2)),
+        newCustomers,
+        previous: {
+          revenue: Number(prevRevenue.toFixed(2)),
+          orders: prevOrders,
+          aov: Number(prevAov.toFixed(2)),
+          units: prevUnits || 0,
+          customers: prevUniqueCustomers,
+          netRevenue: Number((prevRevenue - prevRefunds).toFixed(2)),
+          refunds: Number(prevRefunds.toFixed(2)),
+          discounts: Number(prevDiscountTotal.toFixed(2)),
+          shipping: Number(prevShippingTotal.toFixed(2)),
+          tax: Number(prevTaxTotal.toFixed(2)),
+          avgItemsPerOrder: Number(prevAvgItemsPerOrder.toFixed(2)),
+          newCustomers: prevNewCustomers,
+        }
         });
     } catch (e: any) {
         console.error('GET /kpis error:', e);
