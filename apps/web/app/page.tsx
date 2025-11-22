@@ -4,6 +4,8 @@ import { useState } from 'react';
 
 import { KpiRow } from '@/components/dashboard/kpi-row';
 import { PopularProductsTable } from '@/components/dashboard/popular-products-table';
+import { TopCategoriesTable } from '@/components/dashboard/top-categories-table';
+import { RecentOrdersTable } from '@/components/dashboard/recent-orders-table';
 import { FilterBar, FilterState } from '@/components/filters/filter-bar';
 
 import { useKpis } from '@/hooks/useKpis';
@@ -64,9 +66,17 @@ export default function Page() {
         {kpis && <KpiRow {...kpis} />}
       </section>
 
-      {/* Main grid: popular products */}
-      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
-        <PopularProductsTable  filter={filter} />
+      {/* Main grid: popular products + categories + recent orders */}
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+          <PopularProductsTable filter={filter} />
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+          <TopCategoriesTable filter={filter} />
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+          <RecentOrdersTable filter={filter} />
+        </div>
       </section>
     </div>
   );

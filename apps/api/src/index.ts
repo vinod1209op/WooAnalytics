@@ -9,6 +9,8 @@ import metaRouter from "./routes/meta";
 import productsRouter from "./routes/products";
 import segmentsRouter from "./routes/segments";
 import rfmRouter from "./routes/rfm";
+import categoriesRouter from "./routes/categories";
+import ordersRouter from "./routes/orders";
 import { request } from 'node:http';
 
 const app = express();
@@ -31,5 +33,7 @@ app.use("/meta", metaRouter);
 app.use("/products", productsRouter);
 app.use("/segments", segmentsRouter);
 app.use("/rfm", rfmRouter);
+app.use("/categories", categoriesRouter);
+app.use("/orders", ordersRouter);
 
 app.listen(PORT, () => console.log(`API running on port ${PORT}`));

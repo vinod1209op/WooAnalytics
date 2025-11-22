@@ -1,8 +1,7 @@
-// web/app/components/dashboard/popular-products-table.tsx
 'use client';
 
-import { usePopularProducts } from '@/hooks/usePopularProducts';
 import type { FilterState } from '@/components/filters/filter-bar';
+import { useTopCategories } from '@/hooks/useTopCategories';
 import {
   Table,
   TableBody,
@@ -12,24 +11,22 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-type PopularProductsTableProps = {
+type Props = {
   filter: FilterState;
 };
 
-export function PopularProductsTable({ filter }: PopularProductsTableProps) {
-  const { products, loading, error } = usePopularProducts(filter);
+export function TopCategoriesTable({ filter }: Props) {
+  const { categories, loading, error } = useTopCategories(filter);
 
   return (
     <section className="rounded-2xl border border-emerald-100/70 bg-white/85 p-5 shadow-sm backdrop-blur-sm dark:border-emerald-900/40 dark:bg-emerald-950/30">
-      <header className="mb-3 flex items-center justify-between gap-3">
-        <div>
+      <header className="mb-3">
         <h2 className="text-base font-semibold text-emerald-700 dark:text-emerald-200">
-          Popular products
+          Top categories
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Top 10 by units sold
+          Ranked by revenue
         </p>
-        </div>
       </header>
 
       {error && (
@@ -39,42 +36,40 @@ export function PopularProductsTable({ filter }: PopularProductsTableProps) {
       )}
 
       {loading ? (
-        <div className="h-32 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
-      ) : !products.length ? (
+        <div className="h-24 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
+      ) : !categories.length ? (
         <div className="flex items-center justify-center rounded-xl border border-dashed border-slate-200 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-          No products yet. Once orders sync, you’ll see your top items here.
+          No category data yet.
         </div>
       ) : (
         <div className="overflow-x-auto">
           <Table className="table-fixed text-sm">
             <TableHeader>
               <TableRow className="border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                <TableHead className="w-1/2 py-2 px-2 text-left">Product</TableHead>
-                <TableHead className="w-[90px] py-2 px-2 text-right">Units</TableHead>
-                <TableHead className="w-[120px] py-2 px-2 text-right">Revenue</TableHead>
+                <TableHead className="w-1/2 py-2 px-2 text-left">Category</TableHead>
+                <TableHead className="w-[70px] py-2 px-2 text-right">Units</TableHead>
+                <TableHead className="w-[110px] py-2 px-2 text-right">Revenue</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map((p, idx) => {
+              {categories.map((c, idx) => {
                 const rowBg =
                   idx % 2 === 0
                     ? 'bg-white dark:bg-slate-900'
                     : 'bg-slate-50 dark:bg-slate-900/60';
-                const revenue = p.price * p.total_sales;
-
                 return (
                   <TableRow
-                    key={p.id}
+                    key={c.name + idx}
                     className={`${rowBg} border-b border-slate-100 last:border-0 hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-800/80`}
                   >
-                    <TableCell className="max-w-[220px] truncate py-2 px-2 text-sm font-medium text-slate-900 dark:text-slate-50">
-                      <span title={p.name}>{p.name}</span>
+                    <TableCell className="max-w-[200px] truncate py-2 px-2 text-sm font-medium text-slate-900 dark:text-slate-50">
+                      <span title={c.name}>{c.name}</span>
                     </TableCell>
                     <TableCell className="py-2 px-2 text-right text-sm text-slate-900 dark:text-slate-50 whitespace-nowrap">
-                      {p.total_sales.toLocaleString()}
+                      {c.units.toLocaleString()}
                     </TableCell>
                     <TableCell className="py-2 px-2 text-right text-sm font-semibold text-slate-900 dark:text-slate-50 whitespace-nowrap">
-                      ${revenue.toFixed(2)}
+                      ${c.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
                   </TableRow>
                 );
