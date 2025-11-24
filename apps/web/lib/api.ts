@@ -54,20 +54,28 @@ function buildUrl(
  * Generic helper to call the API and return JSON.
  */
 export async function getJson<T>(
-  path: string,
-  params?: URLSearchParams
+  path: string,
+  params?: URLSearchParams
 ): Promise<T> {
-  const url = buildUrl(path, params);
+  const url = buildUrl(path, params);
 
   if (params) {
     url.search = params.toString();
   }
 
-  const res = await fetch(url.toString(), { cache: 'no-store' });
+  const res = await fetch(url.toString(), { cache: 'no-store' });
 
-  if (!res.ok) {
-    throw new Error(`API ${res.status} ${res.statusText}`);
-  }
+  if (!res.ok) {
+    let detail = '';
+    try {
+      detail = await res.text();
+    } catch (e) {
+      // ignore
+    }
+    throw new Error(
+      `API ${res.status} ${res.statusText}${detail ? ` – ${detail}` : ''}`
+    );
+  }
 
-  return res.json() as Promise<T>;
+  return res.json() as Promise<T>;
 }

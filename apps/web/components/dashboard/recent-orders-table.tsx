@@ -19,9 +19,9 @@ export function RecentOrdersTable({ filter }: Props) {
   const { orders, loading, error } = useRecentOrders(filter, 8);
 
   return (
-    <section className="rounded-2xl border border-emerald-100/70 bg-white/85 p-5 shadow-sm backdrop-blur-sm dark:border-emerald-900/40 dark:bg-emerald-950/30">
+    <section className="rounded-2xl border border-[#d9c7f5] bg-gradient-to-b from-white via-[#faf5ff] to-white/90 p-5 shadow-[0_8px_24px_rgba(93,63,163,0.08)] backdrop-blur-sm dark:border-purple-900/50 dark:bg-gradient-to-b dark:from-[#1a0f2b] dark:via-[#201338] dark:to-[#1a0f2b]/80">
       <header className="mb-3">
-        <h2 className="text-base font-semibold text-emerald-700 dark:text-emerald-200">
+        <h2 className="text-base font-semibold text-[#6f4bb3] dark:text-purple-200">
           Recent orders
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -45,7 +45,7 @@ export function RecentOrdersTable({ filter }: Props) {
         <div className="overflow-x-auto">
           <Table className="table-fixed text-sm">
             <TableHeader>
-              <TableRow className="border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
+              <TableRow className="border-b border-[#d9c7f5] text-[11px] font-semibold uppercase tracking-wide text-[#6f4bb3] dark:border-purple-900/60 dark:text-purple-200">
                 <TableHead className="w-[140px] py-2 px-2">Order</TableHead>
                 <TableHead className="w-[150px] py-2 px-2">Customer</TableHead>
                 <TableHead className="w-[110px] py-2 px-2">Status</TableHead>
