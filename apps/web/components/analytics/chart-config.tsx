@@ -25,6 +25,7 @@ import type {
   NewVsReturningPoint,
   RetentionCohort,
 } from '@/types/analytics';
+import type { Product } from '@/types/product';
 import type { CategorySummary } from '@/types/category';
 
 export type ChartId =
@@ -72,6 +73,9 @@ export type ChartRegistryContext = {
   topProducts: ProductPerformance[];
   topProductsLoading?: boolean;
   topProductsError?: string | null;
+  popularProducts: Product[];
+  popularProductsLoading?: boolean;
+  popularProductsError?: string | null;
   topCategories: CategorySummary[];
   topCategoriesLoading?: boolean;
   topCategoriesError?: string | null;
@@ -146,7 +150,18 @@ export const chartRegistry: ChartEntry[] = [
     id: 'rolling',
     label: 'Rolling 7-day Revenue/Orders',
     description: 'Smoothed trailing averages',
-    render: (ctx) => <RollingChart data={ctx.rolling} loading={ctx.rollingLoading} error={ctx.rollingError} />,
+    render: (ctx) => {
+      const fallback = ctx.rolling?.length
+        ? ctx.rolling
+        : buildRollingFromSales(ctx.sales);
+      return (
+        <RollingChart
+          data={fallback}
+          loading={ctx.rollingLoading}
+          error={ctx.rollingError}
+        />
+      );
+    },
   },
   {
     id: 'refunds_discounts',
@@ -170,7 +185,26 @@ export const chartRegistry: ChartEntry[] = [
     id: 'top_products',
     label: 'Top Products by Revenue',
     description: 'Top sellers (revenue + units)',
-    render: (ctx) => <TopProductsChart data={ctx.topProducts} loading={ctx.topProductsLoading} error={ctx.topProductsError} />,
+    render: (ctx) => {
+      const data = ctx.topProducts?.length
+        ? ctx.topProducts
+        : (ctx.popularProducts ?? []).map((p) => ({
+            id: Number(p.id),
+            name: p.name,
+            sku: p.sku,
+            price: p.price,
+            revenue: (p.price ?? 0) * (p.total_sales ?? 0),
+            units: p.total_sales ?? 0,
+          }));
+
+      return (
+        <TopProductsChart
+          data={data}
+          loading={ctx.topProductsLoading || ctx.popularProductsLoading}
+          error={ctx.topProductsError || ctx.popularProductsError}
+        />
+      );
+    },
   },
   {
     id: 'top_categories',
@@ -204,4 +238,29 @@ export const chartOptions: { label: string; value: ChartId; description?: string
 
 export function getChartById(id: ChartId) {
   return chartRegistry.find((c) => c.id === id) ?? chartRegistry[0];
+}
+
+function buildRollingFromSales(sales: SalesPoint[]): RollingPoint[] {
+  if (!sales?.length) return [];
+  const daily = sales.map((p) => ({
+    date: p.date,
+    revenue: p.revenue,
+    orders: p.orders,
+  }));
+
+  return daily.map((point, idx) => {
+    const start = Math.max(0, idx - 6);
+    const window = daily.slice(start, idx + 1);
+    const windowSize = window.length || 1;
+    const revenueSum = window.reduce((sum, p) => sum + p.revenue, 0);
+    const ordersSum = window.reduce((sum, p) => sum + p.orders, 0);
+
+    return {
+      date: point.date,
+      revenue: point.revenue,
+      orders: point.orders,
+      revenue7d: Math.round((revenueSum / windowSize) * 100) / 100,
+      orders7d: Math.round((ordersSum / windowSize) * 100) / 100,
+    };
+  });
 }

@@ -52,6 +52,16 @@ export default function AnalyticsPage() {
               <p className="text-sm text-[#6f4bb3] dark:text-purple-200/80">
                 Deep-dive into trends, segments, and retention.
               </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full border border-[#d9c7f5] px-3 py-1 text-[#5b3ba4] dark:border-purple-900/60 dark:text-purple-100">
+                  Mode: Date range
+                </span>
+                {filter.date?.from && filter.date?.to && (
+                  <span className="rounded-full border border-[#d9c7f5] px-3 py-1 text-[#5b3ba4] dark:border-purple-900/60 dark:text-purple-100">
+                    {filter.date.from.toISOString().slice(0, 10)} → {filter.date.to.toISOString().slice(0, 10)}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
