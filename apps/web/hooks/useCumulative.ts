@@ -1,23 +1,20 @@
-// hooks/usePopularProducts.ts
+// apps/web/hooks/useCumulative.ts
 "use client";
 
-import type { Product } from "@/types/product";
 import type { FilterState } from "@/components/filters/filter-bar";
 import { buildFilterParams } from "@/lib/api";
+import type { CumulativePoint } from "@/types/analytics";
 import { useStoreFetch } from "./useStoreFetch";
 
-/**
- * Popular products hook with category/coupon/date filters.
- */
-export function usePopularProducts(filter: FilterState) {
+export function useCumulativeSeries(filter: FilterState) {
   const params = new URLSearchParams(buildFilterParams(filter, "") as Record<string, string>);
-  const { data, loading, error } = useStoreFetch<Product[]>({
-    path: "/products/popular",
+  const { data, loading, error } = useStoreFetch<{ points: CumulativePoint[] }>({
+    path: "/analytics/cumulative",
     searchParams: params,
   });
 
   return {
-    products: data ?? [],
+    points: data?.points ?? [],
     loading,
     error,
   };

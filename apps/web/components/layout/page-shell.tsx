@@ -13,7 +13,7 @@ export function PageShell({ children }: PageShellProps) {
         <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-[#c9a7ff]/30 dark:bg-purple-700/30" />
         <div className="absolute right-0 top-40 h-80 w-80 rounded-full bg-[#f6c28b]/25 dark:bg-purple-800/20" />
       </div>
-      <div className="relative mx-auto w-full max-w-[1500px] px-4 py-6 md:px-7 md:py-8">
+      <div className="relative mx-auto w-full max-w-[1500px] px-4 py-4 md:px-7 md:py-6">
         {children}
       </div>
     </main>

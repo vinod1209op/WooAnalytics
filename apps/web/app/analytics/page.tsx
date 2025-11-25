@@ -5,22 +5,10 @@ import { useState } from 'react';
 import { FilterBar, FilterState } from '@/components/filters/filter-bar';
 import { useHasMounted } from '@/hooks/useHasMounted';
 import { useMetaFilters } from '@/hooks/useMetaFilters';
-
-import { useSalesSeries } from '@/hooks/useSalesSeries';
-import { useSegments } from '@/hooks/useSegments';
-import { useRfmHeatmap } from '@/hooks/useRfm';
-
-import { RevenueChart } from '@/components/analytics/revenue-chart';
-import { OrdersChart } from '@/components/analytics/orders-chart';
-import { RfmHeatmap } from '@/components/analytics/rfm-chart';
-import { SegmentsChart } from '@/components/analytics/segments-chart';
-
-const pad =
-  'p-5 md:p-6';
-const card =
-  'rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/60';
-const sectionTitle =
-  'text-xl font-semibold text-slate-900 dark:text-slate-50';
+import { ChartSwitcher } from '@/components/analytics/chart-switcher';
+import type { ChartId } from '@/components/analytics/chart-registry';
+import { Badge } from '@/components/ui/badge';
+import { useAnalyticsCharts } from '@/hooks/useAnalyticsCharts';
 
 export default function AnalyticsPage() {
   const hasMounted = useHasMounted();
@@ -38,65 +26,70 @@ export default function AnalyticsPage() {
   });
 
   const { categories, coupons } = useMetaFilters();
-  const { sales, loading: loadingSales, error: salesError } = useSalesSeries(filter);
-  const { segments, loading: loadingSegments } = useSegments(filter);
-  const { cells, loading: loadingRfm } = useRfmHeatmap(filter);
+  const { chartSlots, setChartSlots, chartContext } = useAnalyticsCharts(filter);
 
   if (!hasMounted) return null;
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-6 md:px-8 dark:bg-slate-950">
-      <div className="mx-auto w-full max-w-7xl space-y-6">
-        {/* Header + filters */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-black dark:text-white">
-            Analytics
-          </h1>
-          <div className="flex items-center gap-2">
-            <FilterBar
-              filter={filter}
-              onChange={setFilter}
-              categories={categories}
-              coupons={coupons}
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-[#d9c7f5] backdrop-blur dark:bg-purple-950/40 dark:ring-purple-900/40 sm:p-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-purple-600 text-white shadow-sm dark:bg-purple-500">
+                  Live
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="border-[#d9c7f5] text-[#5b3ba4] dark:border-purple-800 dark:text-purple-100"
+                >
+                  Analytics
+                </Badge>
+              </div>
+              <h1 className="mt-2 text-3xl font-bold tracking-tight text-[#5b3ba4] dark:text-purple-100">
+                Analytics
+              </h1>
+              <p className="text-sm text-[#6f4bb3] dark:text-purple-200/80">
+                Deep-dive into trends, segments, and retention.
+              </p>
+            </div>
 
+            <div className="flex items-center gap-2">
+              <FilterBar
+                filter={filter}
+                onChange={setFilter}
+                categories={categories}
+                coupons={coupons}
+              />
+            </div>
+          </div>
+        </div>
+
+        <section className="grid grid-cols-1 gap-4 pb-2 xl:grid-cols-2">
+          {chartSlots.map((chartId, idx) => (
+            <ChartSwitcher
+              key={`${chartId}-${idx}`}
+              chartId={chartId}
+              onChange={(next) => {
+                setChartSlots((prev) => {
+                  const copy = [...prev];
+                  copy[idx] = next;
+                  return copy;
+                });
+              }}
+              context={chartContext}
+              allowedIds={
+                idx === 0
+                  ? (['revenue_orders', 'orders', 'aov', 'cumulative'] as ChartId[])
+                  : idx === 1
+                  ? (['rolling', 'refunds_discounts', 'shipping_tax', 'new_returning'] as ChartId[])
+                  : idx === 2
+                  ? (['top_products', 'top_categories'] as ChartId[])
+                  : (['segments', 'rfm', 'retention_cohorts'] as ChartId[])
+              }
             />
-          </div>
-        </div>
-
-        {/* Row 1: Revenue + Orders */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className={`${card} ${pad} min-w-0`}>
-            <h2 className={sectionTitle}>Revenue Trend</h2>
-            <div className="mt-4 h-80 w-full">
-              <RevenueChart data={sales} loading={loadingSales} error={salesError} />
-            </div>
-          </div>
-
-          <div className={`${card} ${pad} min-w-0`}>
-            <h2 className={sectionTitle}>Orders Trend</h2>
-            <div className="mt-4 h-80 w-full">
-              <OrdersChart data={sales} loading={loadingSales} error={salesError} />
-            </div>
-          </div>
-        </div>
-
-        {/* Row 2: RFM + Segments */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className={`${card} ${pad} min-w-0`}>
-            <h2 className={sectionTitle}>RFM Distribution</h2>
-            <div className="mt-4 h-80 w-full">
-              <RfmHeatmap data={cells} loading={loadingRfm} />
-            </div>
-          </div>
-
-          <div className={`${card} ${pad} min-w-0`}>
-            <h2 className={sectionTitle}>Customer Segments</h2>
-            <div className="mt-4 h-80 w-full">
-              <SegmentsChart data={segments} loading={loadingSegments} />
-            </div>
-          </div>
-        </div>
+          ))}
+        </section>
       </div>
-    </main>
   );
 }

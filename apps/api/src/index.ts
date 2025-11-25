@@ -11,6 +11,7 @@ import segmentsRouter from "./routes/segments";
 import rfmRouter from "./routes/rfm";
 import categoriesRouter from "./routes/categories";
 import ordersRouter from "./routes/orders";
+import analyticsRouter from "./routes/analytics";
 import { request } from 'node:http';
 
 const app = express();
@@ -35,5 +36,6 @@ app.use("/segments", segmentsRouter);
 app.use("/rfm", rfmRouter);
 app.use("/categories", categoriesRouter);
 app.use("/orders", ordersRouter);
+app.use("/analytics", analyticsRouter);
 
 app.listen(PORT, () => console.log(`API running on port ${PORT}`));

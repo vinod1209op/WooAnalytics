@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { getJson } from "@/lib/api";
-import { useStore } from "@/providers/store-provider";
 import type { FilterState } from "@/components/filters/filter-bar";
 import { RfmRow } from "@/types/rfm";
 import { RfmHeatmapCell } from "@/types/rfmCell";
+import { useStoreFetch } from "./useStoreFetch";
 
 type UseRfmHeatmapResult = {
   cells: RfmHeatmapCell[];
@@ -34,68 +33,20 @@ function getFrequencyScore(freq: number): number {
 }
 
 export function useRfmHeatmap(filter: FilterState): UseRfmHeatmapResult {
-  const { store, loading: loadingStore, error: storeError } = useStore();
+  const params = new URLSearchParams();
+  const from = filter.date?.from;
+  const to = filter.date?.to;
+  if (from) params.set("from", from.toISOString().slice(0, 10));
+  if (to) params.set("to", to.toISOString().slice(0, 10));
 
-  const [rows, setRows] = useState<RfmRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // 1) Load raw RFM rows from backend
-  useEffect(() => {
-    if (loadingStore) return;
-
-    if (!store?.id) {
-      setError(storeError || "No store configured");
-      setRows([]);
-      setLoading(false);
-      return;
-    }
-    const storeId = store.id;
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const params = new URLSearchParams();
-        params.set("storeId", storeId);
-
-        // ✅ ONLY DATE FILTER – ignore category/coupon
-        const from = filter.date?.from;
-        const to = filter.date?.to;
-
-        if (from) params.set("from", from.toISOString().slice(0, 10));
-        if (to) params.set("to", to.toISOString().slice(0, 10));
-
-        const data = await getJson<RfmRow[]>("/rfm", params);
-
-        if (cancelled) return;
-        setRows(data ?? []);
-      } catch (err) {
-        if (cancelled) return;
-        console.error("useRfmHeatmap error:", err);
-        const msg =
-          err instanceof Error
-            ? err.message
-            : typeof err === "string"
-            ? err
-            : "Failed to load RFM data";
-        setError(msg);
-        setRows([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [store?.id, loadingStore, storeError, filter.date?.from, filter.date?.to]);
+  const { data, loading, error } = useStoreFetch<RfmRow[]>({
+    path: "/rfm",
+    searchParams: params,
+  });
 
   // 2) Convert rows → 5×5 heatmap buckets
   const cells = useMemo<RfmHeatmapCell[]>(() => {
+    const rows = data ?? [];
     if (!rows.length) return [];
 
     const map = new Map<string, RfmHeatmapCell>();
@@ -146,11 +97,11 @@ export function useRfmHeatmap(filter: FilterState): UseRfmHeatmapResult {
     }
 
     return result;
-  }, [rows]);
+  }, [data]);
 
   return {
     cells,
-    loading: loadingStore || loading,
-    error: error ?? storeError ?? null,
+    loading,
+    error,
   };
 }

@@ -2,6 +2,7 @@
 'use client';
 
 import { RfmHeatmapCell } from "@/types/rfmCell";
+import { ChartFrame } from "./chart-frame";
 
 type RfmHeatmapProps = {
   data: RfmHeatmapCell[];
@@ -9,29 +10,8 @@ type RfmHeatmapProps = {
 };
 
 export function RfmHeatmap({ data, loading }: RfmHeatmapProps) {
-  if (loading) {
-    return (
-      <div className="flex h-80 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
-        <span className="text-sm text-slate-500 dark:text-slate-400">
-          Loading RFM heatmap…
-        </span>
-      </div>
-    );
-  }
-
-  if (!data || data.length === 0) {
-    return (
-      <div className="flex h-80 items-center justify-center rounded-xl border border-dashed border-slate-200 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-        No RFM data yet. Once customers place orders, you’ll see the
-        distribution here.
-      </div>
-    );
-  }
-
-  // Build simple grid by R & F buckets.
   const rValues = Array.from(new Set(data.map((c) => c.rScore))).sort((a, b) => a - b);
   const fValues = Array.from(new Set(data.map((c) => c.fScore))).sort((a, b) => a - b);
-
   const maxCount = data.reduce((max, c) => Math.max(max, c.count), 0) || 1;
 
   const getCell = (rScore: number, fScore: number) =>
@@ -40,56 +20,56 @@ export function RfmHeatmap({ data, loading }: RfmHeatmapProps) {
   const intensity = (count: number) => count / maxCount;
 
   return (
-    <div className="flex h-80 flex-col gap-3">
-      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-        <span>Recency →</span>
-        <span>More recent</span>
-      </div>
-
-      <div className="flex flex-1 gap-3">
-        {/* Y axis label */}
-        <div className="flex flex-col justify-between text-xs text-slate-500 dark:text-slate-400">
-          <span>Frequency ↑</span>
-          <span>More orders</span>
+    <ChartFrame loading={loading} error={undefined} hasData={!!data && data.length > 0} padded>
+      <div className="flex h-full flex-col gap-3">
+        <div className="flex items-center justify-between text-xs text-[#6f4bb3] dark:text-purple-200">
+          <span>Recency →</span>
+          <span>More recent</span>
         </div>
 
-        {/* Grid */}
-        <div className="flex-1 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40">
-          <div
-            className="grid h-full w-full"
-            style={{
-              gridTemplateRows: `repeat(${fValues.length}, 1fr)`,
-              gridTemplateColumns: `repeat(${rValues.length}, 1fr)`,
-            }}
-          >
-            {fValues
-              .slice()
-              .reverse() // high frequency at top
-              .map((f) =>
-                rValues.map((r) => {
-                  const cell = getCell(r, f);
-                  const t = intensity(cell.count);
-                  const bgOpacity = 0.15 + t * 0.85;
+        <div className="flex flex-1 gap-3">
+          <div className="flex flex-col justify-between text-xs text-[#6f4bb3] dark:text-purple-200">
+            <span>Frequency ↑</span>
+            <span>More orders</span>
+          </div>
 
-                  return (
-                    <div
-                      key={`${r}-${f}`}
-                      className="flex flex-col items-center justify-center border border-slate-100 text-[10px] font-medium text-slate-800 dark:border-slate-800 dark:text-slate-100"
-                      style={{
-                        backgroundColor: `rgba(56, 189, 248, ${bgOpacity})`, // cyan-ish
-                      }}
-                    >
-                      <div>{cell.count}</div>
-                      <div className="mt-0.5 opacity-70">
-                        R{cell.rScore} · F{cell.fScore}
+          <div className="flex-1 overflow-hidden rounded-xl border border-[#e9d5ff] bg-white/60 dark:border-purple-900/60 dark:bg-purple-950/30">
+            <div
+              className="grid h-full w-full"
+              style={{
+                gridTemplateRows: `repeat(${fValues.length}, 1fr)`,
+                gridTemplateColumns: `repeat(${rValues.length}, 1fr)`,
+              }}
+            >
+              {fValues
+                .slice()
+                .reverse()
+                .map((f) =>
+                  rValues.map((r) => {
+                    const cell = getCell(r, f);
+                    const t = intensity(cell.count);
+                    const bgOpacity = 0.12 + t * 0.78;
+
+                    return (
+                      <div
+                        key={`${r}-${f}`}
+                        className="flex flex-col items-center justify-center border border-white/40 text-[10px] font-medium text-[#3b2a63] dark:border-purple-900/40 dark:text-purple-50"
+                        style={{
+                          backgroundColor: `rgba(124, 58, 237, ${bgOpacity})`,
+                        }}
+                      >
+                        <div>{cell.count}</div>
+                        <div className="mt-0.5 opacity-80">
+                          R{cell.rScore} · F{cell.fScore}
+                        </div>
                       </div>
-                    </div>
-                  );
-                }),
-              )}
+                    );
+                  }),
+                )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </ChartFrame>
   );
 }

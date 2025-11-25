@@ -1,23 +1,19 @@
-// hooks/usePopularProducts.ts
 "use client";
 
-import type { Product } from "@/types/product";
 import type { FilterState } from "@/components/filters/filter-bar";
+import type { CategorySummary } from "@/types/category";
 import { buildFilterParams } from "@/lib/api";
 import { useStoreFetch } from "./useStoreFetch";
 
-/**
- * Popular products hook with category/coupon/date filters.
- */
-export function usePopularProducts(filter: FilterState) {
+export function useTopCategoriesPerformance(filter: FilterState) {
   const params = new URLSearchParams(buildFilterParams(filter, "") as Record<string, string>);
-  const { data, loading, error } = useStoreFetch<Product[]>({
-    path: "/products/popular",
+  const { data, loading, error } = useStoreFetch<CategorySummary[]>({
+    path: "/categories/top",
     searchParams: params,
   });
 
   return {
-    products: data ?? [],
+    categories: data ?? [],
     loading,
     error,
   };

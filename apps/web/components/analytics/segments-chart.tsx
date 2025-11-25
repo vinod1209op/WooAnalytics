@@ -1,15 +1,8 @@
 'use client';
 
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { SegmentPoint } from '@/types/segment';
+import { ChartFrame } from './chart-frame';
 
 export function SegmentsChart({
   data,
@@ -18,31 +11,17 @@ export function SegmentsChart({
   data: SegmentPoint[];
   loading?: boolean;
 }) {
-  if (loading) return <ChartSkeleton />;
-  if (!data.length) return <Empty />;
-
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="segment" />
-        <YAxis />
-        <Tooltip />
-        <Bar dataKey="customers" fill="#f59e0b" radius={[6, 6, 0, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-function ChartSkeleton() {
-  return (
-    <div className="h-80 rounded-2xl border border-slate-200 bg-slate-100/80 dark:border-slate-800 dark:bg-slate-900/40 animate-pulse" />
-  );
-}
-function Empty() {
-  return (
-    <div className="flex h-80 items-center justify-center text-sm text-slate-500">
-      No data
-    </div>
+    <ChartFrame loading={loading} error={undefined} hasData={!!data.length}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+          <XAxis dataKey="segment" tick={{ fontSize: 11 }} tickMargin={6} />
+          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+          <Tooltip />
+          <Bar dataKey="customers" fill="#7c3aed" radius={[8, 8, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartFrame>
   );
 }
