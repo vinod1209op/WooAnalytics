@@ -28,6 +28,15 @@ export default function AnalyticsPage() {
   const { categories, coupons } = useMetaFilters();
   const { chartSlots, setChartSlots, chartContext } = useAnalyticsCharts(filter);
 
+  const rangeLabel = (() => {
+    const from = filter.date?.from;
+    const to = filter.date?.to;
+    if (from && to) {
+      return `${from.toLocaleDateString()} → ${to.toLocaleDateString()}`;
+    }
+    return 'Select dates';
+  })();
+
   if (!hasMounted) return null;
 
   return (
@@ -53,12 +62,22 @@ export default function AnalyticsPage() {
                 Deep-dive into trends, segments, and retention.
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                <span className="rounded-full border border-[#d9c7f5] px-3 py-1 text-[#5b3ba4] dark:border-purple-900/60 dark:text-purple-100">
-                  Mode: Date range
+                <span className="rounded-full border border-[#d9c7f5] bg-white/80 px-3 py-1 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-950/30 dark:text-purple-100">
+                  Mode: {filter.type === 'date' ? 'Date range' : filter.type === 'category' ? 'Category' : 'Coupon'}
                 </span>
                 {filter.date?.from && filter.date?.to && (
-                  <span className="rounded-full border border-[#d9c7f5] px-3 py-1 text-[#5b3ba4] dark:border-purple-900/60 dark:text-purple-100">
-                    {filter.date.from.toISOString().slice(0, 10)} → {filter.date.to.toISOString().slice(0, 10)}
+                  <span className="rounded-full border border-[#d9c7f5] bg-white/80 px-3 py-1 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-950/30 dark:text-purple-100">
+                    {rangeLabel}
+                  </span>
+                )}
+                {filter.type === 'category' && (
+                  <span className="rounded-full border border-[#d9c7f5] bg-white/80 px-3 py-1 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-950/30 dark:text-purple-100">
+                    {filter.category || 'All categories'}
+                  </span>
+                )}
+                {filter.type === 'coupon' && (
+                  <span className="rounded-full border border-[#d9c7f5] bg-white/80 px-3 py-1 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-950/30 dark:text-purple-100">
+                    {filter.coupon || 'All coupons'}
                   </span>
                 )}
               </div>
