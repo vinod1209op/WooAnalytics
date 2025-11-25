@@ -28,15 +28,6 @@ export default function AnalyticsPage() {
   const { categories, coupons } = useMetaFilters();
   const { chartSlots, setChartSlots, chartContext } = useAnalyticsCharts(filter);
 
-  const rangeLabel = (() => {
-    const from = filter.date?.from;
-    const to = filter.date?.to;
-    if (from && to) {
-      return `${from.toLocaleDateString()} → ${to.toLocaleDateString()}`;
-    }
-    return 'Select dates';
-  })();
-
   if (!hasMounted) return null;
 
   return (
@@ -61,26 +52,6 @@ export default function AnalyticsPage() {
               <p className="text-sm text-[#6f4bb3] dark:text-purple-200/80">
                 Deep-dive into trends, segments, and retention.
               </p>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                <span className="rounded-full border border-[#d9c7f5] bg-white/80 px-3 py-1 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-950/30 dark:text-purple-100">
-                  Mode: {filter.type === 'date' ? 'Date range' : filter.type === 'category' ? 'Category' : 'Coupon'}
-                </span>
-                {filter.date?.from && filter.date?.to && (
-                  <span className="rounded-full border border-[#d9c7f5] bg-white/80 px-3 py-1 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-950/30 dark:text-purple-100">
-                    {rangeLabel}
-                  </span>
-                )}
-                {filter.type === 'category' && (
-                  <span className="rounded-full border border-[#d9c7f5] bg-white/80 px-3 py-1 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-950/30 dark:text-purple-100">
-                    {filter.category || 'All categories'}
-                  </span>
-                )}
-                {filter.type === 'coupon' && (
-                  <span className="rounded-full border border-[#d9c7f5] bg-white/80 px-3 py-1 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-950/30 dark:text-purple-100">
-                    {filter.coupon || 'All coupons'}
-                  </span>
-                )}
-              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -91,6 +62,39 @@ export default function AnalyticsPage() {
                 coupons={coupons}
               />
             </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Badge
+              variant="outline"
+              className="border-[#d9c7f5] bg-white text-[#5b3ba4] dark:border-purple-800 dark:bg-purple-950/50 dark:text-purple-100"
+            >
+              Mode: {filter.type === 'date' ? 'Date range' : filter.type === 'category' ? 'Category' : 'Coupon'}
+            </Badge>
+            {filter.date?.from && filter.date?.to && (
+              <Badge
+                variant="outline"
+                className="border-[#d9c7f5] bg-white text-[#5b3ba4] dark:border-purple-800 dark:bg-purple-950/50 dark:text-purple-100"
+              >
+                {filter.date.from.toLocaleDateString()} → {filter.date.to.toLocaleDateString()}
+              </Badge>
+            )}
+            {filter.type === 'category' && (
+              <Badge
+                variant="outline"
+                className="border-[#d9c7f5] bg-white text-[#5b3ba4] dark:border-purple-800 dark:bg-purple-950/50 dark:text-purple-100"
+              >
+                {filter.category ? filter.category : 'All categories'}
+              </Badge>
+            )}
+            {filter.type === 'coupon' && (
+              <Badge
+                variant="outline"
+                className="border-[#d9c7f5] bg-white text-[#5b3ba4] dark:border-purple-800 dark:bg-purple-950/50 dark:text-purple-100"
+              >
+                {filter.coupon ? filter.coupon : 'All coupons'}
+              </Badge>
+            )}
           </div>
         </div>
 

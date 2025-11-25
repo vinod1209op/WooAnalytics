@@ -11,5 +11,4 @@ export interface KpiSummary {
   tax: number;
   avgItemsPerOrder: number;
   newCustomers: number;
-  previous?: KpiSummary;
 }

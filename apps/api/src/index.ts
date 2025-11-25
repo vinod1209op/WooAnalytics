@@ -11,11 +11,11 @@ import segmentsRouter from "./routes/segments";
 import rfmRouter from "./routes/rfm";
 import categoriesRouter from "./routes/categories";
 import ordersRouter from "./routes/orders";
-import analyticsRouter from "./routes/analytics";
-import { request } from 'node:http';
+import createAnalyticsRouter from "./routes/analytics";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const analyticsRouter = createAnalyticsRouter();
 
 app.use(cors());
 app.use(morgan("dev"));

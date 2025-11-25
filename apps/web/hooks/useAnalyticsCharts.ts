@@ -15,7 +15,6 @@ import { useNewVsReturning } from './useNewVsReturning';
 import { useTopProductsPerformance } from './useTopProductsPerformance';
 import { useRetentionCohorts } from './useRetentionCohorts';
 import { useTopCategoriesPerformance } from './useTopCategoriesPerformance';
-import { usePopularProducts } from './usePopularProducts';
 
 type UseAnalyticsChartsResult = {
   chartSlots: ChartId[];
@@ -34,15 +33,14 @@ export function useAnalyticsCharts(filter: FilterState): UseAnalyticsChartsResul
   const { points: shippingTax, loading: shippingTaxLoading, error: shippingTaxError } = useShippingTax(filter);
   const { points: newReturning, loading: newReturningLoading, error: newReturningError } = useNewVsReturning(filter);
   const { products: topProducts, loading: topProductsLoading, error: topProductsError } = useTopProductsPerformance(filter);
-  const { products: popularProducts, loading: popularProductsLoading, error: popularProductsError } = usePopularProducts(filter);
   const { categories: topCategories, loading: topCategoriesLoading, error: topCategoriesError } = useTopCategoriesPerformance(filter);
   const { cohorts, loading: cohortsLoading, error: cohortsError } = useRetentionCohorts();
 
   const [chartSlots, setChartSlotsState] = useState<ChartId[]>([
-    'revenue_orders',
-    'rolling',
-    'top_products',
-    'segments',
+    'revenue_orders', // slot 1
+    'rolling', // slot 2
+    'top_categories', // slot 3
+    'segments', // slot 4
   ]);
 
   const setChartSlots = (updater: (prev: ChartId[]) => ChartId[]) =>
@@ -78,9 +76,6 @@ export function useAnalyticsCharts(filter: FilterState): UseAnalyticsChartsResul
     topProducts,
     topProductsLoading,
     topProductsError,
-    popularProducts,
-    popularProductsLoading,
-    popularProductsError,
     topCategories,
     topCategoriesLoading,
     topCategoriesError,
