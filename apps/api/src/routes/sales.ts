@@ -17,13 +17,10 @@ function ymd(d: Date): string {
 
 router.get("/", async (req: Request, res: Response) => {
   try {
-    const { storeId, from, to, type, category, coupon } = req.query as {
+    const { storeId, from, to } = req.query as {
       storeId?: string;
       from?: string;
       to?: string;
-      type?: string;
-      category?: string;
-      coupon?: string;
     };
 
     if (!storeId) {
@@ -53,39 +50,15 @@ router.get("/", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Invalid from/to date" });
     }
 
-    const orderWhere: any = {
-      storeId,
-      createdAt: {
-        gte: fromDate,
-        lte: toDate,
-      },
-    };
-
-    if (type === "category" && category) {
-      orderWhere.items = {
-        some: {
-          product: {
-            categories: {
-              some: {
-                category: { name: category },
-              },
-            },
-          },
-        },
-      };
-    }
-
-    if (type === "coupon" && coupon) {
-      orderWhere.coupons = {
-        some: {
-          coupon: { code: coupon },
-        },
-      };
-    }
-
     // 1) Fetch all orders in range for this store
     const orders = await prisma.order.findMany({
-      where: orderWhere,
+      where: {
+        storeId,
+        createdAt: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
       select: {
         id: true,
         createdAt: true,

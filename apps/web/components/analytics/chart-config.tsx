@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { RevenueChart } from './revenue-chart';
 import { OrdersChart } from './orders-chart';
 import { SegmentsChart } from './segments-chart';
@@ -83,7 +84,7 @@ type ChartEntry = {
   id: ChartId;
   label: string;
   description?: string;
-  render: (ctx: ChartRegistryContext) => JSX.Element;
+  render: (ctx: ChartRegistryContext) => ReactNode;
 };
 
 export const chartRegistry: ChartEntry[] = [

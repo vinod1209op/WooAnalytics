@@ -10,12 +10,10 @@ const router = Router();
  */
 router.get("/top", async (req: Request, res: Response) => {
   try {
-    const { storeId, from, to, type, coupon } = req.query as {
+    const { storeId, from, to } = req.query as {
       storeId?: string;
       from?: string;
       to?: string;
-      type?: string;
-      coupon?: string;
     };
 
     if (!storeId) {
@@ -49,15 +47,6 @@ router.get("/top", async (req: Request, res: Response) => {
             gte: fromDate,
             lte: toDate,
           },
-          ...(type === "coupon" && coupon
-            ? {
-                coupons: {
-                  some: {
-                    coupon: { code: coupon },
-                  },
-                },
-              }
-            : {}),
         },
       },
       select: {

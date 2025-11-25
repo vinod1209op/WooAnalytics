@@ -31,13 +31,10 @@ type ProductSummary = {
 router.get("/popular", async (req: Request, res: Response) => {
   try {
     console.log("GET /products/popular query:", req.query);
-    const { storeId, from, to, type, category, coupon } = req.query as {
+    const { storeId, from, to } = req.query as {
       storeId: string;
       from?: string;
       to?: string;
-      type?: string;
-      category?: string;
-      coupon?: string;
     };
 
     if (!storeId) {
@@ -83,27 +80,7 @@ router.get("/popular", async (req: Request, res: Response) => {
                 },
               }
             : {}),
-          ...(type === 'coupon' && coupon
-            ? {
-                coupons: {
-                  some: {
-                    coupon: { code: coupon },
-                  },
-                },
-              }
-            : {}),
         },
-        ...(type === 'category' && category
-          ? {
-              product: {
-                categories: {
-                  some: {
-                    category: { name: category },
-                  },
-                },
-              },
-            }
-          : {}),
       },
       orderBy: {
         _sum: {
