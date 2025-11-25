@@ -1,4 +1,4 @@
-export interface KpiSummary {
+export interface KpiPeriod {
   revenue: number;
   orders: number;
   aov: number;
@@ -11,4 +11,8 @@ export interface KpiSummary {
   tax: number;
   avgItemsPerOrder: number;
   newCustomers: number;
+}
+
+export interface KpiSummary extends KpiPeriod {
+  previous?: KpiPeriod;
 }
