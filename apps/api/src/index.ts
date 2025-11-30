@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from "cors";
 import morgan from "morgan";
@@ -12,6 +13,7 @@ import rfmRouter from "./routes/rfm";
 import categoriesRouter from "./routes/categories";
 import ordersRouter from "./routes/orders";
 import createAnalyticsRouter from "./routes/analytics";
+import integrationsRouter from "./routes/integrations";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -37,5 +39,6 @@ app.use("/rfm", rfmRouter);
 app.use("/categories", categoriesRouter);
 app.use("/orders", ordersRouter);
 app.use("/analytics", analyticsRouter);
+app.use("/integrations", integrationsRouter);
 
 app.listen(PORT, () => console.log(`API running on port ${PORT}`));

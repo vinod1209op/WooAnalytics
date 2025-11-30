@@ -12,6 +12,7 @@
     "postinstall": "pnpm prisma:generate"
   },
   "dependencies": {
+    "@notionhq/client": "^5.4.0",
     "@prisma/client": "^6.19.0",
     "axios": "^1.13.2",
     "dotenv": "^16.4.5",
