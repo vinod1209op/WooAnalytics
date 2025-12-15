@@ -1,11 +1,11 @@
 # WooAnalytics Monorepo
 
-Next.js dashboard + Express API + Inngest-powered worker for syncing WooCommerce data into Supabase/Postgres.
+Next.js dashboard + Express API + Inngest-powered worker for syncing WooCommerce data into Supabase/Postgres, now with an AI assistant chat that calls your analytics endpoints.
 
 ## Stack
 
-- **apps/web** – Next.js 16 client-side dashboard (Tailwind, Recharts).
-- **apps/api** – Express + Prisma REST API (stores, KPIs, sales, products, segments, etc.).
+- **apps/web** – Next.js 16 client-side dashboard (Tailwind, Recharts) + floating AI chat widget (Ctrl+K to toggle).
+- **apps/api** – Express + Prisma REST API (stores, KPIs, sales, products, segments, analytics, `/assistant/query` for the AI).
 - **apps/worker** – Inngest/Express worker that talks to WooCommerce, upserts into Prisma, and computes analytics tables.
 - **prisma/** – Shared Prisma schema targeting Supabase/Postgres.
 
@@ -32,8 +32,9 @@ Next.js dashboard + Express API + Inngest-powered worker for syncing WooCommerce
      cp apps/worker/.env.example apps/worker/.env
      ```
    - `DATABASE_URL` should point to the same Supabase/Postgres instance for all packages.
-   - `NEXT_PUBLIC_API_BASE` must match your API URL (`http://localhost:3001` for local dev).
-   - Worker requires `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` plus Woo auth mode.
+- `NEXT_PUBLIC_API_BASE` must match your API URL (`http://localhost:3001` for local dev).
+- API assistant envs: `OPENROUTER_API_KEY` (or compatible), optional `OPENROUTER_BASE_URL`, `STORE_ID` (or ensure `/stores/default` returns one).
+- Worker requires `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` plus Woo auth mode.
 
 3. **Apply Prisma schema**
    ```bash
@@ -77,6 +78,8 @@ pnpm --filter @wooanalytics/api dev
 # Available at http://localhost:3001
 ```
 
+- Assistant route: `POST /assistant/query` (uses analytics endpoints as tools; requires `OPENROUTER_API_KEY` and a valid `STORE_ID`).
+
 ### 3. Web dashboard
 
 ```bash
@@ -103,6 +106,7 @@ pnpm dev
 | --- | --- |
 | `pnpm --filter @wooanalytics/worker dev` | Run the worker locally |
 | `pnpm --filter @wooanalytics/worker seed:store` | Upsert Woo store credentials |
+| `pnpm --filter @wooanalytics/worker sync:full` | One-off full sync for the configured store (`STORE_ID`) |
 | `pnpm --filter @wooanalytics/worker typecheck` | Type-check worker |
 | `pnpm --filter @wooanalytics/api dev` | Start API server |
 | `pnpm --filter apps dev` (from `apps/web`) | Start Next.js dashboard |
