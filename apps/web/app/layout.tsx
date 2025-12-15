@@ -7,6 +7,7 @@ import { StoreProvider } from '@/providers/store-provider';
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
 import { cn } from '@/lib/utils';
+import { ChatWidget } from '@/components/chat/chat-widget';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -29,8 +30,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           attribute="class"
           defaultTheme="light"
           enableSystem>
-            <Navbar />
-            <PageShell><StoreProvider>{children}</StoreProvider></PageShell>
+            <StoreProvider>
+              <Navbar />
+              <PageShell>{children}</PageShell>
+              <ChatWidget />
+            </StoreProvider>
           </ThemeProvider>
       </body>
     </html>

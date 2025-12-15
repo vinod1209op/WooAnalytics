@@ -14,6 +14,7 @@ import categoriesRouter from "./routes/categories";
 import ordersRouter from "./routes/orders";
 import createAnalyticsRouter from "./routes/analytics";
 import integrationsRouter from "./routes/integrations";
+import assistantRouter from "./routes/assistant";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -40,5 +41,6 @@ app.use("/categories", categoriesRouter);
 app.use("/orders", ordersRouter);
 app.use("/analytics", analyticsRouter);
 app.use("/integrations", integrationsRouter);
+app.use("/assistant", assistantRouter);
 
 app.listen(PORT, () => console.log(`API running on port ${PORT}`));
