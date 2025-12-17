@@ -12,7 +12,7 @@ const suggestions = [
   "Revenue last 7 days vs previous 7",
   "Top 5 products this month",
   "Are refunds trending up?",
-  "New vs returning customers last week",
+  "New vs returning customers last week"
 ];
 
 export function ChatWidget() {

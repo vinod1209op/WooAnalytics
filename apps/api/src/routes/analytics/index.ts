@@ -7,6 +7,9 @@ import { registerRefundsDiscountsRoute } from "./refunds-discounts";
 import { registerShippingTaxRoute } from "./shipping-tax";
 import { registerNewVsReturningRoute } from "./new-vs-returning";
 import { registerRetentionCohortsRoute } from "./retention-cohorts";
+import { registerPerformanceDropRoutes } from "./performance-drop";
+import { registerHealthRatiosRoute } from "./health-ratios";
+import { registerInsightRoutes } from "./insights";
 
 export function createAnalyticsRouter() {
   const router = Router();
@@ -19,6 +22,9 @@ export function createAnalyticsRouter() {
   registerShippingTaxRoute(router);
   registerNewVsReturningRoute(router);
   registerRetentionCohortsRoute(router);
+  registerPerformanceDropRoutes(router);
+  registerHealthRatiosRoute(router);
+  registerInsightRoutes(router);
 
   return router;
 }
