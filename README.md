@@ -8,6 +8,7 @@ Next.js dashboard + Express API + Inngest-powered worker for syncing WooCommerce
 - **apps/api** – Express + Prisma REST API (stores, KPIs, sales, products, segments, analytics, `/assistant/query` for the AI).
 - **apps/worker** – Inngest/Express worker that talks to WooCommerce, upserts into Prisma, and computes analytics tables.
 - **prisma/** – Shared Prisma schema targeting Supabase/Postgres.
+- New analytics endpoints for insights: peak revenue day, anomalies, retention highlights, repeat purchase rates, health ratios, performance drops (products/categories), high-value orders, aging orders (all consumed by the AI and usable for UI cards).
 
 ## Requirements
 

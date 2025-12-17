@@ -9,9 +9,12 @@ import { ChartSwitcher } from '@/components/analytics/chart-switcher';
 import type { ChartId } from '@/components/analytics/chart-registry';
 import { Badge } from '@/components/ui/badge';
 import { useAnalyticsCharts } from '@/hooks/useAnalyticsCharts';
+import { useStore } from '@/providers/store-provider';
+import { InsightsCards } from '@/components/analytics/insights-cards';
 
 export default function AnalyticsPage() {
   const hasMounted = useHasMounted();
+  const { store, loading: storeLoading } = useStore();
 
   const [filter, setFilter] = useState<FilterState>(() => {
     const to = new Date();
@@ -28,7 +31,8 @@ export default function AnalyticsPage() {
   const { categories, coupons } = useMetaFilters();
   const { chartSlots, setChartSlots, chartContext } = useAnalyticsCharts(filter);
 
-  if (!hasMounted) return null;
+  if (!hasMounted || storeLoading) return null;
+  if (!store) return null;
 
   return (
       <div className="space-y-4">
@@ -97,6 +101,8 @@ export default function AnalyticsPage() {
             )}
           </div>
         </div>
+
+        <InsightsCards storeId={store.id} filter={filter} />
 
         <section className="grid grid-cols-1 gap-4 pb-2 xl:grid-cols-2">
           {chartSlots.map((chartId, idx) => (
