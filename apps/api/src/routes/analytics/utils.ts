@@ -75,6 +75,20 @@ export function parseDateRange(from?: string, to?: string) {
     throw new Error("Invalid from/to date");
   }
 
+  if (process.env.LOG_DATE_DEBUG === "1") {
+    console.log(
+      "[parseDateRange]",
+      {
+        timeZone: ANALYTICS_TZ,
+        input: { from, to },
+        parsed: {
+          fromDate: fromDate.toISOString(),
+          toDate: toDate.toISOString()
+        }
+      }
+    );
+  }
+
   return { fromDate, toDate };
 }
 
