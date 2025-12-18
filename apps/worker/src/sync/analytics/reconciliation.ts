@@ -1,6 +1,6 @@
 import { prisma } from "../../db";
 import type { SyncContext, SyncStats } from "../types";
-import { ymd } from "./helpers";
+import { ymd, zonedDateFromYmd } from "./helpers";
 
 export async function syncReconciliation(
   ctx: SyncContext,
@@ -51,7 +51,7 @@ export async function syncReconciliation(
       where: {
         storeId_date: {
           storeId: ctx.store.id,
-          date: new Date(`${day}T00:00:00Z`),
+          date: zonedDateFromYmd(day, false),
         },
       },
       update: {
@@ -65,7 +65,7 @@ export async function syncReconciliation(
       },
       create: {
         storeId: ctx.store.id,
-        date: new Date(`${day}T00:00:00Z`),
+        date: zonedDateFromYmd(day, false),
         wooOrders: woo.orders,
         wooRevenue: woo.revenue,
         dbOrders: db.orders,

@@ -44,6 +44,9 @@ export function registerHealthRatiosRoute(router: Router) {
 
       const refundRatePct = grossRevenue ? round2((refunds / grossRevenue) * 100) : 0;
       const discountRatePct = grossRevenue ? round2((discounts / grossRevenue) * 100) : 0;
+      const grossMarginPct =
+        grossRevenue ? round2(((grossRevenue - shipping - tax) / grossRevenue) * 100) : 0;
+      const netMarginPct = grossRevenue ? round2((netRevenue / grossRevenue) * 100) : 0;
 
       return res.json({
         grossRevenue: round2(grossRevenue),
@@ -54,6 +57,8 @@ export function registerHealthRatiosRoute(router: Router) {
         tax: round2(tax),
         refundRatePct,
         discountRatePct,
+        grossMarginPct,
+        netMarginPct,
         range: { from: fromDate.toISOString(), to: toDate.toISOString() },
       });
     } catch (err: any) {

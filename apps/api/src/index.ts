@@ -15,10 +15,12 @@ import ordersRouter from "./routes/orders";
 import createAnalyticsRouter from "./routes/analytics";
 import integrationsRouter from "./routes/integrations";
 import assistantRouter from "./routes/assistant";
+import createCustomersInsightsRouter from "./routes/customers-insights";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const analyticsRouter = createAnalyticsRouter();
+const customersInsightsRouter = createCustomersInsightsRouter();
 
 app.use(cors());
 app.use(morgan("dev"));
@@ -42,5 +44,6 @@ app.use("/orders", ordersRouter);
 app.use("/analytics", analyticsRouter);
 app.use("/integrations", integrationsRouter);
 app.use("/assistant", assistantRouter);
+app.use("/customers", customersInsightsRouter);
 
 app.listen(PORT, () => console.log(`API running on port ${PORT}`));

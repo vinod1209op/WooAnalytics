@@ -167,9 +167,11 @@ export function registerInsightRoutes(router: Router) {
       };
 
       const last30 = await calc(30);
+      const last60 = await calc(60);
       const last90 = await calc(90);
+      const last120 = await calc(120);
 
-      return res.json({ last30, last90 });
+      return res.json({ last30, last60, last90, last120 });
     } catch (err: any) {
       console.error("GET /analytics/repeat-purchase error:", err);
       return res.status(500).json({ error: err?.message ?? "Internal server error" });

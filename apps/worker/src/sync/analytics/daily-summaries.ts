@@ -1,6 +1,6 @@
 import { prisma } from "../../db";
 import type { SyncContext, SyncStats } from "../types";
-import { ymd } from "./helpers";
+import { ymd, zonedDateFromYmd } from "./helpers";
 
 export async function syncDailySummaries(ctx: SyncContext): Promise<SyncStats> {
   const warnings: string[] = [];
@@ -45,7 +45,7 @@ export async function syncDailySummaries(ctx: SyncContext): Promise<SyncStats> {
   }
 
   for (const [day, data] of byDay.entries()) {
-    const date = new Date(`${day}T00:00:00Z`);
+    const date = zonedDateFromYmd(day, false);
     const refundsAmount = refundMap.get(day) ?? 0;
     const netRevenue = data.revenue - refundsAmount;
     const aov = data.orders ? data.revenue / data.orders : 0;

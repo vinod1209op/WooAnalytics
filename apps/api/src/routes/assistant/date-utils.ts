@@ -6,6 +6,21 @@ export function resolveDateRange(message: string, filters: any) {
 
   const iso = (d: Date) => d.toISOString().slice(0, 10);
 
+  const setCalendarMonth = (offsetMonths: number) => {
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offsetMonths, 1));
+    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0));
+    from = iso(start);
+    to = iso(end);
+  };
+
+  const setNamedMonth = (monthIndex: number, year?: number) => {
+    const y = year ?? now.getUTCFullYear();
+    const start = new Date(Date.UTC(y, monthIndex, 1));
+    const end = new Date(Date.UTC(y, monthIndex + 1, 0));
+    from = iso(start);
+    to = iso(end);
+  };
+
   const setWindow = (days: number) => {
     const end = new Date();
     const start = new Date(end);
@@ -14,8 +29,32 @@ export function resolveDateRange(message: string, filters: any) {
     to = iso(end);
   };
 
+  const monthNames = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december"
+  ];
+
+  const monthMatch = monthNames.findIndex((m) => text.includes(m));
+  const yearMatch = text.match(/(20\d{2})/);
   if (!from || !to) {
-    if (text.includes("last 7") || text.includes("past 7") || text.includes("previous week")) {
+    if (text.includes("last month") || text.includes("previous month")) {
+      setCalendarMonth(-1);
+    } else if (monthMatch >= 0) {
+      const year = yearMatch ? Number(yearMatch[1]) : undefined;
+      setNamedMonth(monthMatch, year);
+    } else if (text.includes("this month") || text.includes("current month")) {
+      setCalendarMonth(0);
+    } else if (text.includes("last 7") || text.includes("past 7") || text.includes("previous week")) {
       setWindow(7);
     } else if (text.includes("last week")) {
       setWindow(7);

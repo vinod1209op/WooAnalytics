@@ -7,8 +7,15 @@ import { buildFilterParams, getJson } from '@/lib/api';
 type PeakResponse = { peakRevenueDay: { date: string; revenue: number; orders: number; aov: number } | null };
 type AnomaliesResponse = { anomalies: { date: string; revenue: number; orders: number; revenueZ: number; ordersZ: number }[] };
 type RetentionHighlights = { best: { cohortMonth: string; periodMonth: number; retentionRate: number; customersInCohort: number } | null; worst: { cohortMonth: string; periodMonth: number; retentionRate: number; customersInCohort: number } | null };
-type RepeatResponse = { last30: { rate: number }; last90: { rate: number } };
-type HealthResponse = { refundRate: number; discountRate: number; grossRevenue: number; netRevenue: number };
+type RepeatResponse = { last30: { rate: number }; last60: { rate: number }; last90: { rate: number }; last120: { rate: number } };
+type HealthResponse = {
+  refundRatePct: number;
+  discountRatePct: number;
+  grossRevenue: number;
+  netRevenue: number;
+  grossMarginPct: number;
+  netMarginPct: number;
+};
 
 function StatCard({
   title,
@@ -33,7 +40,7 @@ export function InsightsCards({ storeId, filter }: { storeId: string; filter: Fi
   const [peak, setPeak] = useState<PeakResponse['peakRevenueDay'] | null>(null);
   const [anomalyCount, setAnomalyCount] = useState<number>(0);
   const [retention, setRetention] = useState<RetentionHighlights | null>(null);
-  const [repeatRates, setRepeatRates] = useState<{ r30: number; r90: number }>({ r30: 0, r90: 0 });
+  const [repeatRates, setRepeatRates] = useState<{ r30: number; r60: number; r90: number; r120: number }>({ r30: 0, r60: 0, r90: 0, r120: 0 });
   const [health, setHealth] = useState<HealthResponse | null>(null);
 
   useEffect(() => {
@@ -54,14 +61,19 @@ export function InsightsCards({ storeId, filter }: { storeId: string; filter: Fi
         setPeak(peakRes.peakRevenueDay);
         setAnomalyCount(anomaliesRes.anomalies?.length ?? 0);
         setRetention(retentionRes);
-        setRepeatRates({ r30: repeatRes.last30?.rate ?? 0, r90: repeatRes.last90?.rate ?? 0 });
+        setRepeatRates({
+          r30: repeatRes.last30?.rate ?? 0,
+          r60: repeatRes.last60?.rate ?? 0,
+          r90: repeatRes.last90?.rate ?? 0,
+          r120: repeatRes.last120?.rate ?? 0,
+        });
         setHealth(healthRes);
       } catch (err) {
         if (!cancelled) {
           setPeak(null);
           setAnomalyCount(0);
           setRetention(null);
-          setRepeatRates({ r30: 0, r90: 0 });
+          setRepeatRates({ r30: 0, r60: 0, r90: 0, r120: 0 });
           setHealth(null);
         }
       } finally {
@@ -99,16 +111,20 @@ export function InsightsCards({ storeId, filter }: { storeId: string; filter: Fi
       value={
         loading
           ? 'Loading...'
-          : `${repeatRates.r30.toFixed(1)}% (30d)`
+          : `30d: ${repeatRates.r30.toFixed(1)}% • 60d: ${repeatRates.r60.toFixed(1)}%`
       }
-      sub={`90d: ${repeatRates.r90.toFixed(1)}%`}
+      sub={
+        loading
+          ? ''
+          : `90d: ${repeatRates.r90.toFixed(1)}% • 120d: ${repeatRates.r120.toFixed(1)}%`
+      }
     />,
     <StatCard
       key="health"
       title="Health ratios"
       value={
         health
-          ? `Refund ${(health.refundRate ?? 0).toFixed(1)}% • Discount ${(health.discountRate ?? 0).toFixed(1)}%`
+          ? `Refund ${health.refundRatePct?.toFixed(1)}% • Discount ${health.discountRatePct?.toFixed(1)}%`
           : loading
           ? 'Loading...'
           : 'No data'

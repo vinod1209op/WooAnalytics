@@ -112,6 +112,18 @@ export const toolExecutors: Record<string, ToolExecutor> = {
     if (!res.ok) throw new Error(`orders ${res.status}`);
     return res.json();
   },
+  async get_last_order_for_customer(args) {
+    const url = buildUrl("/customers/last-order", args);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`customers/last-order ${res.status}`);
+    return res.json();
+  },
+  async get_inactive_customers(args) {
+    const url = buildUrl("/customers/inactive", args);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`customers/inactive ${res.status}`);
+    return res.json();
+  },
   async get_peak_day(args) {
     const url = buildUrl("/analytics/peaks", args);
     const res = await fetch(url);

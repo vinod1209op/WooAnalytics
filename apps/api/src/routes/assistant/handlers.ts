@@ -20,6 +20,14 @@ async function resolveStoreId(passed: string | undefined) {
   return store.id;
 }
 
+function sanitizeAnswer(text: string | null | undefined) {
+  if (!text) return text;
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1") // strip bold
+    .replace(/^#{1,6}\s*/gm, "") // strip markdown headings
+    .trim();
+}
+
 export async function handleAssistantQuery(req: Request, res: Response) {
   try {
     const apiKey = process.env.OPENROUTER_API_KEY;
@@ -57,6 +65,15 @@ export async function handleAssistantQuery(req: Request, res: Response) {
     }
 
     const openai = new OpenAI({ apiKey, baseURL });
+    const lower = message.toLowerCase();
+    let allowedTools = toolSchemas;
+    const mentionsProduct = lower.includes("product");
+    const mentionsCategory = lower.includes("category");
+    if (mentionsProduct && !mentionsCategory) {
+      allowedTools = toolSchemas.filter((t) => t.name !== "get_top_categories");
+    } else if (mentionsCategory && !mentionsProduct) {
+      allowedTools = toolSchemas.filter((t) => t.name !== "get_top_products");
+    }
     const messages: any[] = [
       { role: "system", content: systemPrompt },
       {
@@ -75,7 +92,7 @@ export async function handleAssistantQuery(req: Request, res: Response) {
     const completion = await openai.chat.completions.create({
       model: ASSISTANT_MODEL,
       messages,
-      tools: toolSchemas.map((t) => ({
+      tools: allowedTools.map((t) => ({
         type: "function",
         function: {
           name: t.name,
@@ -131,7 +148,7 @@ export async function handleAssistantQuery(req: Request, res: Response) {
     }
 
     res.json({
-      answer: finalMessage,
+      answer: sanitizeAnswer(finalMessage),
       dataUsed
     });
   } catch (err: any) {
