@@ -2,7 +2,7 @@ export const ASSISTANT_MODEL =
   process.env.ASSISTANT_MODEL ||
   process.env.OPENROUTER_MODEL ||
   process.env.OPENAI_MODEL ||
-  "gpt-4o-mini";
+  "gpt-4.1-mini";
 
 export const INTERNAL_API_BASE =
   process.env.INTERNAL_API_BASE ||

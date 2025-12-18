@@ -290,31 +290,5 @@ export const toolSchemas = [
       },
       required: ["storeId"]
     }
-  },
-  {
-    name: "get_last_order_for_customer",
-    description: "Fetch last order for a customer by email or customerId",
-    parameters: {
-      type: "object",
-      properties: {
-        storeId: { type: "string" },
-        email: { type: "string" },
-        customerId: { type: "string" }
-      },
-      required: ["storeId"]
-    }
-  },
-  {
-    name: "get_inactive_customers",
-    description: "List customers whose last order is older than N days (default 30)",
-    parameters: {
-      type: "object",
-      properties: {
-        storeId: { type: "string" },
-        days: { type: "number" },
-        limit: { type: "number" }
-      },
-      required: ["storeId"]
-    }
   }
 ];

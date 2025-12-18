@@ -74,6 +74,11 @@ export async function handleAssistantQuery(req: Request, res: Response) {
     } else if (mentionsCategory && !mentionsProduct) {
       allowedTools = toolSchemas.filter((t) => t.name !== "get_top_products");
     }
+    if (mentionsProduct && !mentionsCategory) {
+      allowedTools = toolSchemas.filter((t) => t.name !== "get_top_categories");
+    } else if (mentionsCategory && !mentionsProduct) {
+      allowedTools = toolSchemas.filter((t) => t.name !== "get_top_products");
+    }
     const messages: any[] = [
       { role: "system", content: systemPrompt },
       {
@@ -147,6 +152,7 @@ export async function handleAssistantQuery(req: Request, res: Response) {
       finalMessage = followUp.choices[0].message.content;
     }
 
+    const lowerMsg = message.toLowerCase();
     res.json({
       answer: sanitizeAnswer(finalMessage),
       dataUsed
