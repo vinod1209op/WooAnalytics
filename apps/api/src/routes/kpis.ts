@@ -39,18 +39,21 @@ router.get('/', async(req: Request, res: Response) => {
 
         // previous period range (same length, immediately before current)
         const diffMs = toDate.getTime() - fromDate.getTime();
+        const endExclusive = new Date(toDate.getTime() + 1);
+
         const prevTo = new Date(fromDate);
         prevTo.setDate(prevTo.getDate() - 1);
         prevTo.setHours(23, 59, 59, 999);
         const prevFrom = new Date(prevTo.getTime() - diffMs);
         prevFrom.setHours(0, 0, 0, 0);
+        const prevEndExclusive = new Date(prevTo.getTime() + 1);
 
         // ----- 2) Base where for orders -----
         const whereOrders: any = {
         storeId,
         createdAt: {
             gte: fromDate,
-            lte: toDate,
+            lt: endExclusive,
         },
         };
 
@@ -58,7 +61,7 @@ router.get('/', async(req: Request, res: Response) => {
           storeId,
           createdAt: {
             gte: prevFrom,
-            lte: prevTo,
+            lt: prevEndExclusive,
           },
         };
 
@@ -120,14 +123,14 @@ router.get('/', async(req: Request, res: Response) => {
             select: { customerId: true },
         }),
         prisma.refund.aggregate({
-            _sum: { amount: true },
-            where: {
-              storeId,
-              createdAt: {
-                gte: fromDate,
-                lte: toDate,
-              },
+          _sum: { amount: true },
+          where: {
+            storeId,
+            createdAt: {
+              gte: fromDate,
+              lt: endExclusive,
             },
+          },
         }),
         prisma.order.groupBy({
           by: ["customerId"],
@@ -155,7 +158,7 @@ router.get('/', async(req: Request, res: Response) => {
             storeId,
             createdAt: {
               gte: prevFrom,
-              lte: prevTo,
+              lt: prevEndExclusive,
             },
           },
         }),
@@ -186,7 +189,7 @@ router.get('/', async(req: Request, res: Response) => {
         const newCustomers = newCustomerGroups.filter((g) => {
           if (g.customerId === null || !g._min.createdAt) return false;
           const firstOrder = g._min.createdAt;
-          return firstOrder >= fromDate && firstOrder <= toDate;
+          return firstOrder >= fromDate && firstOrder < endExclusive;
         }).length;
 
         const prevOrders = prevAgg._count._all || 0;
@@ -204,7 +207,7 @@ router.get('/', async(req: Request, res: Response) => {
         const prevNewCustomers = prevNewCustomerGroups.filter((g) => {
           if (g.customerId === null || !g._min.createdAt) return false;
           const firstOrder = g._min.createdAt;
-          return firstOrder >= prevFrom && firstOrder <= prevTo;
+          return firstOrder >= prevFrom && firstOrder < prevEndExclusive;
         }).length;
 
         // ----- 4) Send payload -----
