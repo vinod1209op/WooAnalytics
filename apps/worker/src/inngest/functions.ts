@@ -79,17 +79,16 @@ export const scheduledSyncFunction = inngest.createFunction(
       return { triggered: 0 };
     }
 
-    await Promise.all(
-      stores.map((store) =>
-        step.sendEvent({
-          name: "woo/store.sync",
-          data: {
-            storeId: store.id,
-            reason: "scheduled",
-          },
-        })
-      )
-    );
+    const events = stores.map((store) => ({
+      name: "woo/store.sync" as const,
+      data: {
+        storeId: store.id,
+        reason: "scheduled",
+      },
+    }));
+
+    await step.sendEvent("scheduled-sync-fanout", events as any);
+    logger.info("Scheduled sync events dispatched", { count: stores.length });
 
     return { triggered: stores.length };
   }
