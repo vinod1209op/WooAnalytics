@@ -316,8 +316,10 @@ function extractUtm(meta: any[]) {
 
 function normalizeDate(value?: string) {
   if (!value) return undefined;
-  const date = new Date(value);
-  return Number.isNaN(Number(date)) ? undefined : date;
+  const hasTz = /Z$|[+-]\d\d:\d\d$/.test(value);
+  const iso = hasTz ? value : `${value}Z`;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 function safeNumber(value: any): number | null {
