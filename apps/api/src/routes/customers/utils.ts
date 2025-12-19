@@ -60,7 +60,7 @@ type ItemWithCategory = {
     categories?: {
       category?: { id: number; name: string | null };
     }[];
-  };
+  } | null;
 };
 
 export function mapOrderItemsWithCategories(items: ItemWithCategory[]) {
@@ -68,7 +68,7 @@ export function mapOrderItemsWithCategories(items: ItemWithCategory[]) {
     const categories =
       item.product?.categories
         ?.map((link) => link.category?.name)
-        .filter(Boolean) ?? [];
+        .filter((n): n is string => !!n) ?? [];
 
     return {
       productId: item.productId,
