@@ -18,7 +18,7 @@ type FunctionLogger = {
 
 type FunctionStep = {
   run<T>(name: string, fn: () => Promise<T>): Promise<T>;
-  sendEvent: (event: SyncEvent) => Promise<void>;
+  sendEvent: (stepId: string, event: SyncEvent | SyncEvent[]) => Promise<void>;
 };
 
 type FunctionContext = {
@@ -87,8 +87,11 @@ export const scheduledSyncFunction = inngest.createFunction(
       },
     }));
 
-    await step.sendEvent(events as any);
-    logger.info("Scheduled sync events dispatched", { count: stores.length });
+    await step.sendEvent("scheduled-sync-fanout", events);
+    logger.info("Scheduled sync events dispatched", {
+      count: stores.length,
+      storeIds: stores.map((s) => s.id),
+    });
 
     return { triggered: stores.length };
   }

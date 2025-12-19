@@ -12,19 +12,22 @@ export function registerLastOrderRoute(router: Router) {
     try {
       const storeId = String(req.query.storeId || "");
       const customerId = req.query.customerId ? Number(req.query.customerId) : undefined;
-      const email = req.query.email ? String(req.query.email) : undefined;
+      const email = req.query.email
+        ? String(req.query.email).trim().toLowerCase()
+        : undefined;
 
       if (!storeId) return res.status(400).json({ error: "storeId is required" });
       if (!customerId && !email) {
         return res.status(400).json({ error: "customerId or email is required" });
       }
 
+      const where =
+        customerId != null
+          ? { storeId, id: customerId }
+          : { storeId, email };
+
       const customer = await prisma.customer.findFirst({
-        where: {
-          storeId,
-          ...(customerId ? { id: customerId } : {}),
-          ...(email ? { email } : {}),
-        },
+        where,
         select: {
           id: true,
           email: true,

@@ -1,7 +1,12 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../../prisma";
 import { round2 } from "../analytics/utils";
-import { fullName, mapOrderItemsWithCategories, parsePositiveInt } from "./utils";
+import {
+  fullName,
+  mapOrderItemsWithCategories,
+  parsePositiveInt,
+  lastOrderSelect,
+} from "./utils";
 
 export function registerWinbackRoute(router: Router) {
   router.get("/:id/winback", async (req: Request, res: Response) => {
@@ -25,24 +30,7 @@ export function registerWinbackRoute(router: Router) {
           email: true,
           firstName: true,
           lastName: true,
-          orders: {
-            orderBy: { createdAt: "desc" },
-            take: 1,
-          select: {
-            id: true,
-            createdAt: true,
-            total: true,
-            items: {
-              select: {
-                productId: true,
-                name: true,
-                sku: true,
-                quantity: true,
-                lineTotal: true,
-              },
-            },
-          },
-          },
+          orders: lastOrderSelect,
         },
       });
 
@@ -97,7 +85,7 @@ export function registerWinbackRoute(router: Router) {
         const productIds = rows.map((r) => r.product_id);
         const products = productIds.length
           ? await prisma.product.findMany({
-              where: { id: { in: productIds } },
+              where: { storeId, id: { in: productIds } },
               select: { id: true, name: true },
             })
           : [];
