@@ -87,7 +87,7 @@ export const scheduledSyncFunction = inngest.createFunction(
       },
     }));
 
-    await step.sendEvent("scheduled-sync-fanout", events as any);
+    await step.sendEvent(events as any);
     logger.info("Scheduled sync events dispatched", { count: stores.length });
 
     return { triggered: stores.length };
