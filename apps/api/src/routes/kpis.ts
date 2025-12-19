@@ -1,6 +1,7 @@
 // apps/api/routes/kpis.ts
 import { Router, Request, Response } from 'express';
 import { prisma } from '../prisma';
+import { parseDateRange } from './analytics/utils';
 
 const router = Router();
 
@@ -12,35 +13,15 @@ router.get('/', async(req: Request, res: Response) => {
         return res.status(400).json({ error: 'storeId is required' });
         }
 
-        // ----- 1) Date range -----
-        const now = new Date();
-
-        let fromDate =
-        typeof from === 'string' && from
-            ? new Date(from + 'T00:00:00')
-            : new Date(now);
-        let toDate =
-        typeof to === 'string' && to
-            ? new Date(to + 'T23:59:59.999')
-            : new Date(now);
-
-        // default to "last 30 days" if no from/to
-        if (!from || !to) {
-        toDate = new Date(now);
-        toDate.setHours(23, 59, 59, 999);
-        fromDate = new Date(now);
-        fromDate.setDate(fromDate.getDate() - 29);
-        fromDate.setHours(0, 0, 0, 0);
-        }
-
-        if (Number.isNaN(+fromDate) || Number.isNaN(+toDate)) {
-        return res.status(400).json({ error: 'Invalid from/to date' });
-        }
+        // ----- 1) Date range (timezone-aware) -----
+        const { fromDate, toDate } = parseDateRange(
+          typeof from === 'string' ? from : undefined,
+          typeof to === 'string' ? to : undefined
+        );
+        const endExclusive = new Date(toDate.getTime() + 1);
 
         // previous period range (same length, immediately before current)
         const diffMs = toDate.getTime() - fromDate.getTime();
-        const endExclusive = new Date(toDate.getTime() + 1);
-
         const prevTo = new Date(fromDate);
         prevTo.setDate(prevTo.getDate() - 1);
         prevTo.setHours(23, 59, 59, 999);
