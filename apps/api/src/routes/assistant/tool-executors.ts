@@ -147,5 +147,25 @@ export const toolExecutors: Record<string, ToolExecutor> = {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`orders/aging ${res.status}`);
     return res.json();
+  },
+  async get_inactive_customers(args) {
+    const url = buildUrl("/customers/inactive", args);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`customers/inactive ${res.status}`);
+    return res.json();
+  },
+  async get_last_order(args) {
+    const url = buildUrl("/customers/last-order", args);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`customers/last-order ${res.status}`);
+    return res.json();
+  },
+  async get_winback_suggestion(args) {
+    if (!args.customerId) throw new Error("customerId is required");
+    const { customerId, ...rest } = args as any;
+    const url = buildUrl(`/customers/${customerId}/winback`, rest);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`customers/winback ${res.status}`);
+    return res.json();
   }
 };

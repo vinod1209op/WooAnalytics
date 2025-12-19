@@ -15,6 +15,7 @@ import ordersRouter from "./routes/orders";
 import createAnalyticsRouter from "./routes/analytics";
 import integrationsRouter from "./routes/integrations";
 import assistantRouter from "./routes/assistant";
+import customersRouter from "./routes/customers";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,6 +39,7 @@ app.use("/products", productsRouter);
 app.use("/segments", segmentsRouter);
 app.use("/rfm", rfmRouter);
 app.use("/categories", categoriesRouter);
+app.use("/customers", customersRouter);
 app.use("/orders", ordersRouter);
 app.use("/analytics", analyticsRouter);
 app.use("/integrations", integrationsRouter);

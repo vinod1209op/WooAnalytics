@@ -163,6 +163,7 @@ model Order {
   @@unique([storeId, wooId], map: "orders_store_wooid_uq")
   @@index([storeId, createdAt])
   @@index([storeId, status])
+  @@index([storeId, customerId, createdAt])
   @@map("orders")
 }
 

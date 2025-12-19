@@ -290,5 +290,45 @@ export const toolSchemas = [
       },
       required: ["storeId"]
     }
+  },
+  {
+    name: "get_inactive_customers",
+    description: "List inactive/idle customers with their last order snapshot",
+    parameters: {
+      type: "object",
+      properties: {
+        storeId: { type: "string" },
+        days: { type: "number" },
+        limit: { type: "number" },
+        cursor: { type: "number" }
+      },
+      required: ["storeId"]
+    }
+  },
+  {
+    name: "get_last_order",
+    description: "Fetch the latest order for a customer by id or email",
+    parameters: {
+      type: "object",
+      properties: {
+        storeId: { type: "string" },
+        customerId: { type: "number" },
+        email: { type: "string" }
+      },
+      required: ["storeId"]
+    }
+  },
+  {
+    name: "get_winback_suggestion",
+    description: "Recommend a win-back offer and cross-sell for an idle customer",
+    parameters: {
+      type: "object",
+      properties: {
+        storeId: { type: "string" },
+        customerId: { type: "number" },
+        days: { type: "number" }
+      },
+      required: ["storeId", "customerId"]
+    }
   }
 ];

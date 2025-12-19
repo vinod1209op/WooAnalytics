@@ -3,6 +3,7 @@ export function resolveDateRange(message: string, filters: any) {
   const now = new Date();
   let from: string | undefined = filters.from;
   let to: string | undefined = filters.to;
+  let overrideApplied = false;
 
   const iso = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -46,23 +47,32 @@ export function resolveDateRange(message: string, filters: any) {
 
   const monthMatch = monthNames.findIndex((m) => text.includes(m));
   const yearMatch = text.match(/(20\d{2})/);
-  if (!from || !to) {
-    if (text.includes("last month") || text.includes("previous month")) {
-      setCalendarMonth(-1);
-    } else if (monthMatch >= 0) {
-      const year = yearMatch ? Number(yearMatch[1]) : undefined;
-      setNamedMonth(monthMatch, year);
-    } else if (text.includes("this month") || text.includes("current month")) {
-      setCalendarMonth(0);
-    } else if (text.includes("last 7") || text.includes("past 7") || text.includes("previous week")) {
-      setWindow(7);
-    } else if (text.includes("last week")) {
-      setWindow(7);
-    } else if (text.includes("last 30") || text.includes("past 30") || text.includes("last month")) {
-      setWindow(30);
-    } else {
-      setWindow(30);
-    }
+
+  // Detect explicit date phrases even if filters already set (override defaults)
+  if (text.includes("last month") || text.includes("previous month")) {
+    setCalendarMonth(-1);
+    overrideApplied = true;
+  } else if (monthMatch >= 0) {
+    const year = yearMatch ? Number(yearMatch[1]) : undefined;
+    setNamedMonth(monthMatch, year);
+    overrideApplied = true;
+  } else if (text.includes("this month") || text.includes("current month")) {
+    setCalendarMonth(0);
+    overrideApplied = true;
+  } else if (text.includes("last 7") || text.includes("past 7") || text.includes("previous week")) {
+    setWindow(7);
+    overrideApplied = true;
+  } else if (text.includes("last week")) {
+    setWindow(7);
+    overrideApplied = true;
+  } else if (text.includes("last 30") || text.includes("past 30")) {
+    setWindow(30);
+    overrideApplied = true;
+  }
+
+  // Fallback when no range specified or override not applied
+  if ((!from || !to) && !overrideApplied) {
+    setWindow(30);
   }
 
   if (!from || !to) {
