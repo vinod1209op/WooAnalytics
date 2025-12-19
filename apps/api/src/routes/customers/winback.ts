@@ -28,19 +28,20 @@ export function registerWinbackRoute(router: Router) {
           orders: {
             orderBy: { createdAt: "desc" },
             take: 1,
-            select: {
-              id: true,
-              createdAt: true,
-              total: true,
-              items: {
-                select: {
-                  productId: true,
-                  name: true,
-                  quantity: true,
-                  lineTotal: true,
-                },
+          select: {
+            id: true,
+            createdAt: true,
+            total: true,
+            items: {
+              select: {
+                productId: true,
+                name: true,
+                sku: true,
+                quantity: true,
+                lineTotal: true,
               },
             },
+          },
           },
         },
       });
