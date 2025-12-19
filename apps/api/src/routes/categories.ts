@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../prisma";
+import { parseDateRange } from "./analytics/utils";
 
 const router = Router();
 
@@ -20,24 +21,8 @@ router.get("/top", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Missing storeId" });
     }
 
-    const now = new Date();
-    let fromDate: Date;
-    let toDate: Date;
-
-    if (from && to) {
-      fromDate = new Date(from + "T00:00:00");
-      toDate = new Date(to + "T23:59:59.999");
-    } else {
-      toDate = new Date(now);
-      toDate.setHours(23, 59, 59, 999);
-      fromDate = new Date(now);
-      fromDate.setDate(fromDate.getDate() - 29);
-      fromDate.setHours(0, 0, 0, 0);
-    }
-
-    if (Number.isNaN(+fromDate) || Number.isNaN(+toDate)) {
-      return res.status(400).json({ error: "Invalid from/to date" });
-    }
+    const { fromDate, toDate } = parseDateRange(from, to);
+    const endExclusive = new Date(toDate.getTime() + 1);
 
     const items = await prisma.orderItem.findMany({
       where: {
@@ -45,7 +30,7 @@ router.get("/top", async (req: Request, res: Response) => {
           storeId,
           createdAt: {
             gte: fromDate,
-            lte: toDate,
+            lt: endExclusive,
           },
         },
       },

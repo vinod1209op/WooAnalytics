@@ -127,7 +127,7 @@ export function buildOrderWhere(req: Request, fromDate: Date, toDate: Date) {
     storeId,
     createdAt: {
       gte: fromDate,
-      lte: toDate,
+      lt: new Date(toDate.getTime() + 1),
     },
   };
 
