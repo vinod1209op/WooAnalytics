@@ -16,6 +16,7 @@ export function Navbar() {
   const navItems = [
     { href: '/', label: 'Dashboard' },
     { href: '/analytics', label: 'Analytics' },
+    { href: '/admin/idle', label: 'Customers' },
   ];
 
   return (

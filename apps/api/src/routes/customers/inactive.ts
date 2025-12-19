@@ -21,9 +21,9 @@ export function registerInactiveRoute(router: Router) {
       );
       const limit = parsePositiveInt(
         req.query.limit as string | undefined,
-        200,
+        100,
         1,
-        500
+        200
       );
       const cursor = parsePositiveInt(
         req.query.cursor as string | undefined,
@@ -89,6 +89,76 @@ export function registerInactiveRoute(router: Router) {
           topCategory,
         };
       });
+
+      const wantCsv =
+        typeof req.query.format === "string" &&
+        req.query.format.toLowerCase() === "csv";
+
+      if (wantCsv) {
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="inactive-customers-${storeId}-${days}d.csv"`
+        );
+
+        const header = [
+          "customerId",
+          "email",
+          "name",
+          "phone",
+          "ordersCount",
+          "lastActiveAt",
+          "lastOrderAt",
+          "lastOrderTotal",
+          "lastOrderDiscount",
+          "lastOrderShipping",
+          "lastOrderTax",
+          "lastOrderCoupons",
+          "lastItems",
+          "topCategory",
+        ];
+
+        const escapeCsv = (val: any) => {
+          if (val === null || val === undefined) return "";
+          const str = String(val);
+          if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+            return `"${str.replace(/"/g, '""')}"`;
+          }
+          return str;
+        };
+
+        const rows = data.map((row) => {
+          const items = row.lastItems
+            .map(
+              (i) =>
+                `${i.name ?? ""} x${i.quantity}` +
+                (i.categories?.length ? ` [${i.categories.join("|")}]` : "")
+            )
+            .join("; ");
+          const coupons = row.lastOrderCoupons.join("|");
+          return [
+            row.customerId,
+            row.email,
+            row.name ?? "",
+            row.phone ?? "",
+            row.ordersCount,
+            row.lastActiveAt ?? "",
+            row.lastOrderAt ?? "",
+            row.lastOrderTotal ?? "",
+            row.lastOrderDiscount ?? "",
+            row.lastOrderShipping ?? "",
+            row.lastOrderTax ?? "",
+            coupons,
+            items,
+            row.topCategory ?? "",
+          ]
+            .map(escapeCsv)
+            .join(",");
+        });
+
+        res.send([header.join(","), ...rows].join("\n"));
+        return;
+      }
 
       return res.json({
         storeId,
