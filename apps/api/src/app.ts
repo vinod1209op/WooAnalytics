@@ -45,3 +45,4 @@ app.use("/integrations", integrationsRouter);
 app.use("/assistant", assistantRouter);
 
 export { app };
+export default app;
