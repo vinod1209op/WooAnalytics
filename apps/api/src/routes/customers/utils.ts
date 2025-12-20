@@ -106,14 +106,26 @@ export type IdleSegment =
   | "ONE_TIME_IDLE_30"
   | "REPEAT_IDLE_30"
   | "LOYAL_IDLE_30"
-  | "LONG_IDLE_60"
-  | "LONG_IDLE_90";
+  | "ONE_TIME_IDLE_60"
+  | "REPEAT_IDLE_60"
+  | "LOYAL_IDLE_60"
+  | "ONE_TIME_IDLE_90"
+  | "REPEAT_IDLE_90"
+  | "LOYAL_IDLE_90";
 
 export function classifyIdle(metrics: IdleMetrics, days: number): IdleSegment {
-  const { ordersCount, ltv, firstOrderAt, lastOrderAt } = metrics;
+  const { ordersCount, ltv } = metrics;
   const loyal = ordersCount >= 5 || (ltv ?? 0) >= 500;
-  if (days >= 90) return "LONG_IDLE_90";
-  if (days >= 60) return "LONG_IDLE_60";
+  if (days >= 90) {
+    if (loyal) return "LOYAL_IDLE_90";
+    if (ordersCount >= 2) return "REPEAT_IDLE_90";
+    return "ONE_TIME_IDLE_90";
+  }
+  if (days >= 60) {
+    if (loyal) return "LOYAL_IDLE_60";
+    if (ordersCount >= 2) return "REPEAT_IDLE_60";
+    return "ONE_TIME_IDLE_60";
+  }
   if (loyal) return "LOYAL_IDLE_30";
   if (ordersCount >= 2) return "REPEAT_IDLE_30";
   return "ONE_TIME_IDLE_30";
@@ -123,12 +135,96 @@ export type SegmentOffer = {
   offer: "percent_off" | "free_shipping" | null;
   value?: number;
   message: "reassure" | "replenish" | "nurture" | "reactivate";
+  subjectLine: string;
+  email: string;
+  sms: string;
 };
 
 export const SEGMENT_PLAYBOOK: Record<IdleSegment, SegmentOffer> = {
-  ONE_TIME_IDLE_30: { offer: "free_shipping", message: "reassure" },
-  REPEAT_IDLE_30: { offer: "percent_off", value: 10, message: "replenish" },
-  LOYAL_IDLE_30: { offer: null, message: "nurture" },
-  LONG_IDLE_60: { offer: "percent_off", value: 15, message: "replenish" },
-  LONG_IDLE_90: { offer: "percent_off", value: 20, message: "reactivate" },
+  ONE_TIME_IDLE_30: {
+    offer: "free_shipping",
+    message: "reassure",
+    subjectLine: "We saved free shipping for you",
+    email: "Thanks for your first order with us. Enjoy free shipping on your next purchase—let us know if you have any questions.",
+    sms: "We saved free shipping for you—come back anytime!",
+  },
+  REPEAT_IDLE_30: {
+    offer: "percent_off",
+    value: 10,
+    message: "replenish",
+    subjectLine: "Running low? Here’s 10% off",
+    email: "You’ve picked great products before. Here’s 10% off your next order—perfect for a quick restock.",
+    sms: "10% off your next order—grab a quick restock.",
+  },
+  LOYAL_IDLE_30: {
+    offer: null,
+    message: "nurture",
+    subjectLine: "We picked a few favorites for you",
+    email: "You’re one of our best customers. No rush—here are a few new picks we think you’ll like.",
+    sms: "We picked a few new favorites for you. No pressure—take a look when you can.",
+  },
+  ONE_TIME_IDLE_60: {
+    offer: "percent_off",
+    value: 15,
+    message: "reassure",
+    subjectLine: "Come back and save 15%",
+    email: "We’d love to see you again. Enjoy 15% off your next order—let us know if you have questions.",
+    sms: "15% off your next order—come back and save.",
+  },
+  REPEAT_IDLE_60: {
+    offer: "percent_off",
+    value: 15,
+    message: "replenish",
+    subjectLine: "A little thank you—15% off",
+    email: "You’ve shopped with us before. Here’s 15% off—perfect timing for a restock.",
+    sms: "15% off your next order—thanks for being a repeat customer.",
+  },
+  LOYAL_IDLE_60: {
+    offer: "percent_off",
+    value: 10,
+    message: "nurture",
+    subjectLine: "Checking in with a small thank-you",
+    email: "We appreciate you. Here’s 10% off if you need anything—plus a few picks we think you’ll enjoy.",
+    sms: "A small thank-you: 10% off your next order.",
+  },
+  ONE_TIME_IDLE_90: {
+    offer: "percent_off",
+    value: 20,
+    message: "reactivate",
+    subjectLine: "We miss you—20% off to return",
+    email: "It’s been a while! Enjoy 20% off your next order—come back and see what’s new.",
+    sms: "20% off to return—come back and see what’s new.",
+  },
+  REPEAT_IDLE_90: {
+    offer: "percent_off",
+    value: 20,
+    message: "reactivate",
+    subjectLine: "Your next order is 20% off",
+    email: "We’d love to have you back. Here’s 20% off your next order—your past picks are waiting.",
+    sms: "20% off your next order—come back anytime.",
+  },
+  LOYAL_IDLE_90: {
+    offer: "percent_off",
+    value: 15,
+    message: "reactivate",
+    subjectLine: "A special thank-you—15% off",
+    email: "You’ve been an amazing customer. Here’s 15% off if you’d like to return—plus a few new recommendations inside.",
+    sms: "15% off as a thank-you—come back when you’re ready.",
+  },
 };
+
+export function computeChurnRisk(metrics: IdleMetrics): number {
+  const days = metrics.daysSinceLastOrder ?? 0;
+  const orders = metrics.ordersCount;
+  const ltv = metrics.ltv ?? 0;
+
+  const daysScore = Math.min(60, (days / 90) * 60);
+  const ordersPenalty = orders <= 1 ? 20 : orders < 3 ? 10 : 0;
+  let ltvPenalty = 0;
+  if (ltv < 50) ltvPenalty = 15;
+  else if (ltv < 200) ltvPenalty = 10;
+  else if (ltv < 500) ltvPenalty = 5;
+
+  const score = Math.min(100, Math.round(daysScore + ordersPenalty + ltvPenalty));
+  return score;
+}

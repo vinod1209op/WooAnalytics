@@ -10,6 +10,7 @@ import {
   mapOrderItemsWithCategories,
   parsePositiveInt,
   IdleMetrics,
+  computeChurnRisk,
 } from "./utils";
 
 export function registerInactiveRoute(router: Router) {
@@ -37,6 +38,14 @@ export function registerInactiveRoute(router: Router) {
       const segmentFilter =
         typeof req.query.segment === "string" && req.query.segment.trim()
           ? req.query.segment.trim()
+          : null;
+      const intentGoal =
+        typeof req.query.intent === "string" && req.query.intent.trim()
+          ? req.query.intent.trim().toLowerCase()
+          : "unknown";
+      const categoryFilter =
+        typeof req.query.category === "string" && req.query.category.trim()
+          ? req.query.category.trim().toLowerCase()
           : null;
 
       if (!storeId) {
@@ -128,6 +137,11 @@ export function registerInactiveRoute(router: Router) {
 
         const segment = classifyIdle(metrics, days);
         const play = SEGMENT_PLAYBOOK[segment];
+        const tags: string[] = [`idle_${days}`];
+        tags.push(metrics.ordersCount >= 2 ? "repeat_buyer" : "one_time_buyer");
+        if (segment.includes("LOYAL")) tags.push("loyal");
+        tags.push(`goal_${intentGoal}`);
+        const churnRisk = computeChurnRisk(metrics);
 
         return {
           customerId: c.id,
@@ -150,13 +164,31 @@ export function registerInactiveRoute(router: Router) {
           lastItems,
           topCategory,
           metrics,
-          intent: { primaryGoal: null, source: "ghl", updatedAt: null },
+          tags,
+          intent: {
+            primaryGoal: intentGoal === "unknown" ? null : intentGoal,
+            source: "ghl",
+            updatedAt: null,
+          },
           segment,
+          churnRisk,
           offer: play,
         };
       });
 
-      const filtered = segmentFilter ? data.filter((d) => d.segment === segmentFilter) : data;
+      const filteredBySegment = segmentFilter
+        ? data.filter((d) => d.segment === segmentFilter)
+        : data;
+
+      const filtered = categoryFilter
+        ? filteredBySegment.filter((d) => {
+            const cat = d.topCategory?.toLowerCase() || "";
+            const itemCats = (d.lastItems || [])
+              .flatMap((i) => i.categories || [])
+              .map((c) => c?.toLowerCase() || "");
+            return cat === categoryFilter || itemCats.includes(categoryFilter);
+          })
+        : filteredBySegment;
 
       const segmentCounts = filtered.reduce<Record<string, number>>((acc, row) => {
         if (!row.segment) return acc;
@@ -196,6 +228,8 @@ export function registerInactiveRoute(router: Router) {
           "topCategory",
           "segment",
           "offer",
+          "churnRisk",
+          "tags",
         ];
 
         const escapeCsv = (val: any) => {
@@ -237,6 +271,8 @@ export function registerInactiveRoute(router: Router) {
             row.topCategory ?? "",
             row.segment,
             row.offer?.offer ?? "",
+            row.churnRisk ?? "",
+            (row.tags || []).join("|"),
           ]
             .map(escapeCsv)
             .join(",");

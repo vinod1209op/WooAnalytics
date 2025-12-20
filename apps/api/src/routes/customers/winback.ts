@@ -8,6 +8,7 @@ import {
   lastOrderSelect,
   classifyIdle,
   SEGMENT_PLAYBOOK,
+  computeChurnRisk,
 } from "./utils";
 
 export function registerWinbackRoute(router: Router) {
@@ -16,6 +17,10 @@ export function registerWinbackRoute(router: Router) {
       const storeId = String(req.query.storeId || "");
       const days = parsePositiveInt(req.query.days as string | undefined, 30, 1, 365);
       const customerId = Number(req.params.id);
+      const intentGoal =
+        typeof req.query.intent === "string" && req.query.intent.trim()
+          ? req.query.intent.trim().toLowerCase()
+          : "unknown";
 
       if (!storeId) return res.status(400).json({ error: "storeId is required" });
       if (!Number.isFinite(customerId)) {
@@ -122,13 +127,19 @@ export function registerWinbackRoute(router: Router) {
       };
       const segment = classifyIdle(metrics, days);
       const offer = SEGMENT_PLAYBOOK[segment];
+      const churnRisk = computeChurnRisk(metrics);
 
       return res.json({
         eligible: true,
         segment: `IDLE_${days}`,
         segmentCode: segment,
         offer,
-        intent: { primaryGoal: null, source: "ghl", updatedAt: null },
+        churnRisk,
+        intent: {
+          primaryGoal: intentGoal === "unknown" ? null : intentGoal,
+          source: "ghl",
+          updatedAt: null,
+        },
         cutoff: cutoff.toISOString(),
         customer: {
           id: customer.id,

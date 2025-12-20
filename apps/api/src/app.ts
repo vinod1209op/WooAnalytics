@@ -16,6 +16,8 @@ import createAnalyticsRouter from "./routes/analytics";
 import integrationsRouter from "./routes/integrations";
 import assistantRouter from "./routes/assistant";
 import customersRouter from "./routes/customers";
+import cronRouter from "./routes/cron";
+import cronHealthRouter from "./routes/cron/health";
 
 const app = express();
 const analyticsRouter = createAnalyticsRouter();
@@ -43,6 +45,8 @@ app.use("/orders", ordersRouter);
 app.use("/analytics", analyticsRouter);
 app.use("/integrations", integrationsRouter);
 app.use("/assistant", assistantRouter);
+app.use("/cron", cronRouter);
+app.use("/cron", cronHealthRouter);
 
 export { app };
 export default app;

@@ -15,4 +15,5 @@ Segment: <segment>
 Last order total: $<amount> (<product/category>)
 Offer: <offer>
 Message: <message>
+If asked for “all idle customers” or similar, lead with segment counts and per-segment CSV links (if available), then provide a few representative examples per segment rather than a single combined list.
 `;
