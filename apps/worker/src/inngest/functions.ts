@@ -49,9 +49,10 @@ export const syncStoreFunction = inngest.createFunction(
       throw new Error(`Store ${storeId} not found`);
     }
 
+    // Default incremental window: last 2 days when not a full sync and no explicit "since".
     const sinceDate =
       since || !full
-        ? new Date(since ?? Date.now() - 1000 * 60 * 60 * 24 * 30)
+        ? new Date(since ?? Date.now() - 1000 * 60 * 60 * 24 * 2)
         : undefined;
 
     const result = await step.run("run-sync", () =>
