@@ -92,3 +92,43 @@ export function computeTopCategory(
   }
   return Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
+
+export type IdleMetrics = {
+  ordersCount: number;
+  firstOrderAt: Date | null;
+  lastOrderAt: Date | null;
+  ltv: number | null;
+  avgDaysBetweenOrders: number | null;
+  daysSinceLastOrder: number | null;
+};
+
+export type IdleSegment =
+  | "ONE_TIME_IDLE_30"
+  | "REPEAT_IDLE_30"
+  | "LOYAL_IDLE_30"
+  | "LONG_IDLE_60"
+  | "LONG_IDLE_90";
+
+export function classifyIdle(metrics: IdleMetrics, days: number): IdleSegment {
+  const { ordersCount, ltv, firstOrderAt, lastOrderAt } = metrics;
+  const loyal = ordersCount >= 5 || (ltv ?? 0) >= 500;
+  if (days >= 90) return "LONG_IDLE_90";
+  if (days >= 60) return "LONG_IDLE_60";
+  if (loyal) return "LOYAL_IDLE_30";
+  if (ordersCount >= 2) return "REPEAT_IDLE_30";
+  return "ONE_TIME_IDLE_30";
+}
+
+export type SegmentOffer = {
+  offer: "percent_off" | "free_shipping" | null;
+  value?: number;
+  message: "reassure" | "replenish" | "nurture" | "reactivate";
+};
+
+export const SEGMENT_PLAYBOOK: Record<IdleSegment, SegmentOffer> = {
+  ONE_TIME_IDLE_30: { offer: "free_shipping", message: "reassure" },
+  REPEAT_IDLE_30: { offer: "percent_off", value: 10, message: "replenish" },
+  LOYAL_IDLE_30: { offer: null, message: "nurture" },
+  LONG_IDLE_60: { offer: "percent_off", value: 15, message: "replenish" },
+  LONG_IDLE_90: { offer: "percent_off", value: 20, message: "reactivate" },
+};

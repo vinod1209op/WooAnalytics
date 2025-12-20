@@ -25,8 +25,9 @@ export default function IdleCustomersPage() {
   const [limit] = useState(50);
   const [cursor, setCursor] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [segment, setSegment] = useState<string | null>(null);
 
-  const { data, loading, error } = useInactiveCustomers({ days, limit, cursor });
+  const { data, loading, error } = useInactiveCustomers({ days, limit, cursor, segment });
 
   useEffect(() => {
     if (copied) {
@@ -44,8 +45,9 @@ export default function IdleCustomersPage() {
       cursor: String(cursor),
       format: 'csv',
     });
+    if (segment) params.set('segment', segment);
     return `${API_BASE}/customers/inactive?${params.toString()}`;
-  }, [store?.id, days, limit, cursor]);
+  }, [store?.id, days, limit, cursor, segment]);
 
   const sortedRows = useMemo(() => {
     const list = data?.data ?? [];
@@ -98,6 +100,28 @@ export default function IdleCustomersPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Select
+              value={segment ?? 'all'}
+              onValueChange={(val) => {
+                setSegment(val === 'all' ? null : val);
+                setCursor(0);
+              }}
+            >
+              <SelectTrigger className="w-[180px] rounded-xl border-[#d9c7f5] bg-white text-[#5b3ba4] shadow-sm dark:border-purple-900/50 dark:bg-purple-950/50">
+                <SelectValue placeholder="Segment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All segments</SelectItem>
+                {(data?.segmentCounts
+                  ? Object.keys(data.segmentCounts)
+                  : ['ONE_TIME_IDLE_30', 'REPEAT_IDLE_30', 'LOYAL_IDLE_30', 'LONG_IDLE_60', 'LONG_IDLE_90']
+                ).map((seg) => (
+                  <SelectItem key={seg} value={seg}>
+                    {seg}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               variant="outline"
               className="rounded-xl border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
@@ -135,6 +159,8 @@ export default function IdleCustomersPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Segment</TableHead>
+                <TableHead>Orders/LTV</TableHead>
                 <TableHead>Last order</TableHead>
                 <TableHead>Items</TableHead>
                 <TableHead>Category</TableHead>
@@ -144,14 +170,14 @@ export default function IdleCustomersPage() {
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-sm text-slate-500">
+                  <TableCell colSpan={7} className="text-sm text-slate-500">
                     Loading…
                   </TableCell>
                 </TableRow>
               )}
               {!loading && data?.data?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-sm text-slate-500">
+                  <TableCell colSpan={7} className="text-sm text-slate-500">
                     No idle customers for this window.
                   </TableCell>
                 </TableRow>
@@ -176,6 +202,19 @@ export default function IdleCustomersPage() {
                     </TableCell>
                     <TableCell className="text-sm text-slate-700 dark:text-slate-200">
                       {row.email}
+                    </TableCell>
+                    <TableCell>
+                      {row.segment ? (
+                        <Badge className="bg-[#f0e5ff] text-[#5b3ba4] dark:bg-purple-900/60 dark:text-purple-50">
+                          {row.segment}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-slate-500">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-700 dark:text-slate-200">
+                      <div>Orders: {row.ordersCount}</div>
+                      <div>LTV: ${row.metrics?.ltv ?? 0}</div>
                     </TableCell>
                     <TableCell className="text-sm text-slate-700 dark:text-slate-200">
                       <div>Ordered: {formatDate(row.lastOrderAt)}</div>

@@ -149,10 +149,42 @@ export const toolExecutors: Record<string, ToolExecutor> = {
     return res.json();
   },
   async get_inactive_customers(args) {
-    const url = buildUrl("/customers/inactive", args);
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`customers/inactive ${res.status}`);
-    return res.json();
+    const days = args.days ?? 30;
+    const limit = args.limit ?? 200;
+    const segment = args.segment;
+    let cursor = args.cursor ?? 0;
+
+    const merged: any = {
+      storeId: args.storeId,
+      days,
+      cutoff: null,
+      count: 0,
+      segmentCounts: {},
+      data: [],
+    };
+
+    // Fetch up to 5 pages (cap 1000 rows at default limit 200)
+    for (let i = 0; i < 5; i++) {
+      const pageArgs = { ...args, days, limit, cursor, segment };
+      const url = buildUrl("/customers/inactive", pageArgs);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`customers/inactive ${res.status}`);
+      const json = await res.json();
+
+      merged.cutoff = merged.cutoff || json.cutoff;
+      merged.data.push(...(json.data || []));
+      merged.count += json.count || 0;
+      if (json.segmentCounts) {
+        for (const [k, v] of Object.entries(json.segmentCounts)) {
+          merged.segmentCounts[k] = (merged.segmentCounts[k] || 0) + (v as number);
+        }
+      }
+
+      if (!json.nextCursor) break;
+      cursor = json.nextCursor;
+    }
+
+    return merged;
   },
   async get_last_order(args) {
     const url = buildUrl("/customers/last-order", args);

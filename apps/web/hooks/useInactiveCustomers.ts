@@ -10,6 +10,7 @@ export type IdleCustomer = {
   name: string | null;
   phone: string | null;
   ordersCount: number;
+  firstOrderAt: string | null;
   lastActiveAt: string | null;
   lastOrderAt: string | null;
   lastOrderTotal: number | null;
@@ -17,6 +18,17 @@ export type IdleCustomer = {
   lastOrderShipping: number | null;
   lastOrderTax: number | null;
   lastOrderCoupons: string[];
+  metrics?: {
+    daysSinceLastOrder: number | null;
+    ltv: number | null;
+    avgDaysBetweenOrders: number | null;
+  };
+  segment?: string;
+  offer?: {
+    offer: "percent_off" | "free_shipping" | null;
+    value?: number;
+    message: string;
+  };
   lastItems: {
     productId: number | null;
     name: string | null;
@@ -34,6 +46,7 @@ type InactiveResponse = {
   cutoff: string;
   count: number;
   nextCursor: number | null;
+  segmentCounts?: Record<string, number>;
   data: IdleCustomer[];
 };
 
@@ -41,10 +54,12 @@ export function useInactiveCustomers({
   days,
   limit,
   cursor,
+  segment,
 }: {
   days: number;
   limit: number;
   cursor: number;
+  segment?: string | null;
 }) {
   const { store, loading: loadingStore, error: storeError } = useStore();
   const [data, setData] = useState<InactiveResponse | null>(null);
@@ -66,6 +81,7 @@ export function useInactiveCustomers({
     params.set('days', String(days));
     params.set('limit', String(limit));
     params.set('cursor', String(cursor));
+    if (segment) params.set('segment', segment);
 
     (async () => {
       try {
@@ -93,7 +109,7 @@ export function useInactiveCustomers({
     return () => {
       cancelled = true;
     };
-  }, [store?.id, loadingStore, storeError, days, limit, cursor]);
+  }, [store?.id, loadingStore, storeError, days, limit, cursor, segment]);
 
   return { data, loading: loadingStore || loading, error: error ?? storeError ?? null };
 }

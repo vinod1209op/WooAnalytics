@@ -6,7 +6,7 @@ import { ChatInput } from "./chat-input";
 import { ChatSuggestions } from "./chat-suggestions";
 import { useAssistantChat } from "@/hooks/useAssistantChat";
 import { useHasMounted } from "@/hooks/useHasMounted";
-import { Sparkles, X } from "lucide-react";
+import { Sparkles, X, Maximize2, Minimize2 } from "lucide-react";
 
 const suggestions = [
   "Revenue last 7 days vs previous 7",
@@ -21,6 +21,7 @@ export function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -52,13 +53,27 @@ export function ChatWidget() {
       </button>
 
       {open && (
-        <div className="fixed bottom-16 right-4 z-50 flex w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 max-h-[60vh] h-[400px] text-sm">
+        <div
+          className={[
+            "fixed bottom-16 right-4 z-50 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 text-sm",
+            expanded
+              ? "h-[70vh] w-[90vw] max-w-5xl"
+              : "h-[400px] max-h-[60vh] w-full max-w-sm",
+          ].join(" ")}
+        >
           <div className="flex items-center justify-between border-b border-slate-200 bg-purple-600 px-3 py-2 text-white text-sm font-semibold dark:border-slate-800">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5" />
               <div className="text-sm">AI Assistant</div>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setExpanded((v) => !v)}
+                className="rounded-md bg-white/20 p-1 text-white hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/60"
+                aria-label={expanded ? "Reduce chat size" : "Expand chat size"}
+              >
+                {expanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </button>
               <button
                 onClick={() => clearMessages()}
                 className="rounded-md bg-white/20 px-2 py-[2px] text-[11px] text-white hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/60"

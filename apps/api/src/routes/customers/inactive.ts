@@ -4,9 +4,12 @@ import { round2 } from "../analytics/utils";
 import {
   computeTopCategory,
   fullName,
+  classifyIdle,
+  SEGMENT_PLAYBOOK,
   lastOrderSelect,
   mapOrderItemsWithCategories,
   parsePositiveInt,
+  IdleMetrics,
 } from "./utils";
 
 export function registerInactiveRoute(router: Router) {
@@ -31,13 +34,16 @@ export function registerInactiveRoute(router: Router) {
         0,
         1_000_000
       );
+      const segmentFilter =
+        typeof req.query.segment === "string" && req.query.segment.trim()
+          ? req.query.segment.trim()
+          : null;
 
       if (!storeId) {
         return res.status(400).json({ error: "storeId is required" });
       }
 
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - days);
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
       const customers = await prisma.customer.findMany({
         where: {
@@ -63,19 +69,75 @@ export function registerInactiveRoute(router: Router) {
         },
       });
 
+      const now = Date.now();
+      const customerIds = customers.map((c) => c.id);
+      const aggregates = customerIds.length
+        ? await prisma.order.groupBy({
+            by: ["customerId"],
+            where: { storeId, customerId: { in: customerIds } },
+            _count: { _all: true },
+            _sum: { total: true },
+            _min: { createdAt: true },
+            _max: { createdAt: true },
+          })
+        : [];
+      const aggMap = new Map<
+        number,
+        {
+          count: number;
+          sumTotal: number;
+          first: Date | null;
+          last: Date | null;
+        }
+      >(
+        aggregates.map((a) => [
+          a.customerId!,
+          {
+            count: a._count._all ?? 0,
+            sumTotal: a._sum.total ?? 0,
+            first: a._min.createdAt ?? null,
+            last: a._max.createdAt ?? null,
+          },
+        ])
+      );
+
       const data = customers.map((c) => {
         const lastOrder = c.orders[0] ?? null;
         const lastItems = mapOrderItemsWithCategories(lastOrder?.items ?? []);
         const topCategory = computeTopCategory(lastItems);
+        const agg = aggMap.get(c.id);
+
+        const lastDate = agg?.last ?? lastOrder?.createdAt ?? null;
+        const metrics: IdleMetrics = {
+          ordersCount: c._count?.orders ?? agg?.count ?? 0,
+          firstOrderAt: agg?.first ?? null,
+          lastOrderAt: lastDate,
+          ltv: agg ? round2(agg.sumTotal) : null,
+          avgDaysBetweenOrders:
+            agg && agg.count > 1 && agg.first && agg.last
+              ? round2(
+                  (agg.last.getTime() - agg.first.getTime()) /
+                    (agg.count - 1) /
+                    (1000 * 60 * 60 * 24)
+                )
+              : null,
+          daysSinceLastOrder: lastDate
+            ? round2((now - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+            : null,
+        };
+
+        const segment = classifyIdle(metrics, days);
+        const play = SEGMENT_PLAYBOOK[segment];
 
         return {
           customerId: c.id,
           email: c.email,
           name: fullName(c.firstName, c.lastName) || null,
           phone: c.phone,
-          ordersCount: c._count?.orders ?? 0,
+          ordersCount: metrics.ordersCount,
+          firstOrderAt: metrics.firstOrderAt,
           lastActiveAt: c.lastActiveAt,
-          lastOrderAt: lastOrder?.createdAt ?? null,
+          lastOrderAt: metrics.lastOrderAt ?? null,
           lastOrderTotal: lastOrder ? round2(lastOrder.total ?? 0) : null,
           lastOrderDiscount: lastOrder ? round2(lastOrder.discountTotal ?? 0) : null,
           lastOrderShipping: lastOrder ? round2(lastOrder.shippingTotal ?? 0) : null,
@@ -87,8 +149,20 @@ export function registerInactiveRoute(router: Router) {
             : [],
           lastItems,
           topCategory,
+          metrics,
+          intent: { primaryGoal: null, source: "ghl", updatedAt: null },
+          segment,
+          offer: play,
         };
       });
+
+      const filtered = segmentFilter ? data.filter((d) => d.segment === segmentFilter) : data;
+
+      const segmentCounts = filtered.reduce<Record<string, number>>((acc, row) => {
+        if (!row.segment) return acc;
+        acc[row.segment] = (acc[row.segment] || 0) + 1;
+        return acc;
+      }, {});
 
       const wantCsv =
         typeof req.query.format === "string" &&
@@ -107,8 +181,12 @@ export function registerInactiveRoute(router: Router) {
           "name",
           "phone",
           "ordersCount",
+          "firstOrderAt",
           "lastActiveAt",
           "lastOrderAt",
+          "daysSinceLastOrder",
+          "ltv",
+          "avgDaysBetweenOrders",
           "lastOrderTotal",
           "lastOrderDiscount",
           "lastOrderShipping",
@@ -116,6 +194,8 @@ export function registerInactiveRoute(router: Router) {
           "lastOrderCoupons",
           "lastItems",
           "topCategory",
+          "segment",
+          "offer",
         ];
 
         const escapeCsv = (val: any) => {
@@ -127,7 +207,7 @@ export function registerInactiveRoute(router: Router) {
           return str;
         };
 
-        const rows = data.map((row) => {
+        const rows = filtered.map((row) => {
           const items = row.lastItems
             .map(
               (i) =>
@@ -142,8 +222,12 @@ export function registerInactiveRoute(router: Router) {
             row.name ?? "",
             row.phone ?? "",
             row.ordersCount,
+            row.firstOrderAt ?? "",
             row.lastActiveAt ?? "",
             row.lastOrderAt ?? "",
+            row.metrics?.daysSinceLastOrder ?? "",
+            row.metrics?.ltv ?? "",
+            row.metrics?.avgDaysBetweenOrders ?? "",
             row.lastOrderTotal ?? "",
             row.lastOrderDiscount ?? "",
             row.lastOrderShipping ?? "",
@@ -151,6 +235,8 @@ export function registerInactiveRoute(router: Router) {
             coupons,
             items,
             row.topCategory ?? "",
+            row.segment,
+            row.offer?.offer ?? "",
           ]
             .map(escapeCsv)
             .join(",");
@@ -164,9 +250,10 @@ export function registerInactiveRoute(router: Router) {
         storeId,
         days,
         cutoff: cutoff.toISOString(),
-        count: data.length,
+        count: filtered.length,
         nextCursor: customers.length === limit ? cursor + limit : null,
-        data,
+        segmentCounts,
+        data: filtered,
       });
     } catch (err: any) {
       console.error("GET /customers/inactive error:", err);

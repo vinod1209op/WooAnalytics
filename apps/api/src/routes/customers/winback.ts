@@ -6,6 +6,8 @@ import {
   mapOrderItemsWithCategories,
   parsePositiveInt,
   lastOrderSelect,
+  classifyIdle,
+  SEGMENT_PLAYBOOK,
 } from "./utils";
 
 export function registerWinbackRoute(router: Router) {
@@ -20,8 +22,7 @@ export function registerWinbackRoute(router: Router) {
         return res.status(400).json({ error: "Invalid customer id" });
       }
 
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - days);
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
       const customer = await prisma.customer.findFirst({
         where: { id: customerId, storeId },
@@ -55,13 +56,6 @@ export function registerWinbackRoute(router: Router) {
         return res.json({ eligible: false, reason: "not_idle" });
       }
 
-      const offer =
-        days >= 90
-          ? { type: "percent_off", value: 20 }
-          : days >= 60
-          ? { type: "percent_off", value: 15 }
-          : { type: "percent_off", value: 10 };
-
       const primaryItem =
         lastOrder.items.find((i) => i.productId) ?? lastOrder.items[0] ?? null;
       const primaryProductId = primaryItem?.productId ?? null;
@@ -83,11 +77,11 @@ export function registerWinbackRoute(router: Router) {
         `;
 
         const productIds = rows.map((r) => r.product_id);
-        const products = productIds.length
-          ? await prisma.product.findMany({
-              where: { storeId, id: { in: productIds } },
-              select: { id: true, name: true },
-            })
+      const products = productIds.length
+        ? await prisma.product.findMany({
+            where: { storeId, id: { in: productIds } },
+            select: { id: true, name: true },
+          })
           : [];
         const nameMap = new Map(products.map((p) => [p.id, p.name]));
 
@@ -98,9 +92,43 @@ export function registerWinbackRoute(router: Router) {
         }));
       }
 
+      const agg = await prisma.order.aggregate({
+        _count: { _all: true },
+        _sum: { total: true },
+        _min: { createdAt: true },
+        _max: { createdAt: true },
+        where: { storeId, customerId },
+      });
+
+      const metrics = {
+        ordersCount: agg._count._all ?? 0,
+        firstOrderAt: agg._min.createdAt ?? null,
+        lastOrderAt: agg._max.createdAt ?? lastOrder?.createdAt ?? null,
+        ltv: agg._sum.total != null ? round2(agg._sum.total) : null,
+        avgDaysBetweenOrders:
+          agg._count._all && agg._count._all > 1 && agg._min.createdAt && agg._max.createdAt
+            ? round2(
+                (agg._max.createdAt.getTime() - agg._min.createdAt.getTime()) /
+                  (agg._count._all - 1) /
+                  (1000 * 60 * 60 * 24)
+              )
+            : null,
+        daysSinceLastOrder:
+          agg._max.createdAt
+            ? round2((Date.now() - agg._max.createdAt.getTime()) / (1000 * 60 * 60 * 24))
+            : lastOrder
+            ? round2((Date.now() - lastOrder.createdAt.getTime()) / (1000 * 60 * 60 * 24))
+            : null,
+      };
+      const segment = classifyIdle(metrics, days);
+      const offer = SEGMENT_PLAYBOOK[segment];
+
       return res.json({
         eligible: true,
         segment: `IDLE_${days}`,
+        segmentCode: segment,
+        offer,
+        intent: { primaryGoal: null, source: "ghl", updatedAt: null },
         cutoff: cutoff.toISOString(),
         customer: {
           id: customer.id,
