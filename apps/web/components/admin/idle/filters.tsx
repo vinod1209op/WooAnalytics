@@ -9,6 +9,8 @@ type FilterProps = {
   setDays: Dispatch<SetStateAction<number>>;
   intent: string | null;
   setIntent: Dispatch<SetStateAction<string | null>>;
+  improvement: string | null;
+  setImprovement: Dispatch<SetStateAction<string | null>>;
   segment: string | null;
   setSegment: Dispatch<SetStateAction<string | null>>;
   category: string | null;
@@ -22,6 +24,21 @@ type FilterProps = {
 };
 
 const DAYS_PRESETS = [30, 60, 90];
+const INTENT_OPTIONS = [
+  { value: 'stress', label: 'Stress / Anxiety' },
+  { value: 'creativity_focus', label: 'Creativity / Focus' },
+  { value: 'mood_brainfog', label: 'Mood / Brain fog' },
+  { value: 'growth', label: 'Growth' },
+  { value: 'energy', label: 'Energy' },
+  { value: 'unsure', label: 'Unsure / Exploring' },
+  { value: 'other', label: 'Other' },
+];
+const IMPROVEMENT_OPTIONS = [
+  { value: 'emotional_balance', label: 'Emotional balance' },
+  { value: 'cognitive_performance', label: 'Cognitive performance' },
+  { value: 'physical_wellbeing', label: 'Physical wellbeing' },
+  { value: 'spiritual_growth', label: 'Spiritual growth' },
+];
 
 export function IdleFilters({
   days,
@@ -72,9 +89,29 @@ export function IdleFilters({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All intents</SelectItem>
-          {['stress', 'creativity', 'sleep', 'focus'].map((goal) => (
-            <SelectItem key={goal} value={goal}>
-              {goal}
+          {INTENT_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={improvement ?? 'all'}
+        onValueChange={(val) => {
+          setImprovement(val === 'all' ? null : val);
+          resetCursor();
+        }}
+      >
+        <SelectTrigger className="w-[200px] rounded-xl border-[#d9c7f5] bg-white text-[#5b3ba4] shadow-sm dark:border-purple-900/50 dark:bg-purple-950/50">
+          <SelectValue placeholder="Improvement area" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All improvements</SelectItem>
+          {IMPROVEMENT_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
             </SelectItem>
           ))}
         </SelectContent>

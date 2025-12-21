@@ -10,6 +10,34 @@ datasource db {
 }
 
 /* ---------------------------------------------------
+   ENUMS: INTENT
+---------------------------------------------------- */
+
+enum IntentPrimary {
+  stress
+  creativity_focus
+  mood_brainfog
+  growth
+  energy
+  unsure
+  other
+}
+
+enum IntentMentalState {
+  trauma_recovery
+  spiritual_growth
+  low_productivity
+  high_stress_depression
+}
+
+enum IntentImprovementArea {
+  emotional_balance
+  cognitive_performance
+  physical_wellbeing
+  spiritual_growth
+}
+
+/* ---------------------------------------------------
    CORE: STORES
 ---------------------------------------------------- */
 
@@ -53,6 +81,11 @@ model Customer {
   phone     String?
   createdAt DateTime @default(now())
   lastActiveAt DateTime?
+  primaryIntent   IntentPrimary?
+  mentalState     IntentMentalState?
+  improvementArea IntentImprovementArea?
+  intentUpdatedAt DateTime?
+  rawQuizAnswers  Json?
 
   // Relations
   store      Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -64,6 +97,7 @@ model Customer {
   @@unique([storeId, email], map: "customers_store_email_uq")
   @@unique([storeId, wooId], map: "customers_store_wooid_uq")
   @@index([storeId, email])
+  @@index([storeId, primaryIntent])
   @@map("customers")
 }
 

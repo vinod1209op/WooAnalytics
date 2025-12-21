@@ -12,6 +12,24 @@ import {
   IdleMetrics,
   computeChurnRisk,
 } from "./utils";
+import { buildIntentTags } from "../../lib/intent-normalizer";
+
+const INTENT_VALUES = new Set([
+  "stress",
+  "creativity_focus",
+  "mood_brainfog",
+  "growth",
+  "energy",
+  "unsure",
+  "other",
+]);
+
+const IMPROVEMENT_VALUES = new Set([
+  "emotional_balance",
+  "cognitive_performance",
+  "physical_wellbeing",
+  "spiritual_growth",
+]);
 
 export function registerInactiveRoute(router: Router) {
   router.get("/inactive", async (req: Request, res: Response) => {
@@ -39,10 +57,19 @@ export function registerInactiveRoute(router: Router) {
         typeof req.query.segment === "string" && req.query.segment.trim()
           ? req.query.segment.trim()
           : null;
-      const intentGoal =
+      const intentFilter =
         typeof req.query.intent === "string" && req.query.intent.trim()
           ? req.query.intent.trim().toLowerCase()
-          : "unknown";
+          : null;
+      const safeIntent = intentFilter && INTENT_VALUES.has(intentFilter) ? intentFilter : null;
+      const improvementFilter =
+        typeof req.query.improvement === "string" && req.query.improvement.trim()
+          ? req.query.improvement.trim().toLowerCase()
+          : null;
+      const safeImprovement =
+        improvementFilter && IMPROVEMENT_VALUES.has(improvementFilter)
+          ? improvementFilter
+          : null;
       const categoryFilter =
         typeof req.query.category === "string" && req.query.category.trim()
           ? req.query.category.trim().toLowerCase()
@@ -58,6 +85,8 @@ export function registerInactiveRoute(router: Router) {
         where: {
           storeId,
           email: { not: "" },
+          ...(safeIntent ? { primaryIntent: safeIntent as any } : {}),
+          ...(safeImprovement ? { improvementArea: safeImprovement as any } : {}),
           orders: {
             some: { createdAt: { lt: cutoff } },
             none: { createdAt: { gte: cutoff } },
@@ -73,6 +102,11 @@ export function registerInactiveRoute(router: Router) {
           lastName: true,
           phone: true,
           lastActiveAt: true,
+          primaryIntent: true,
+          mentalState: true,
+          improvementArea: true,
+          intentUpdatedAt: true,
+          rawQuizAnswers: true,
           _count: { select: { orders: true } },
           orders: lastOrderSelect,
         },
@@ -140,7 +174,13 @@ export function registerInactiveRoute(router: Router) {
         const tags: string[] = [`idle_${days}`];
         tags.push(metrics.ordersCount >= 2 ? "repeat_buyer" : "one_time_buyer");
         if (segment.includes("LOYAL")) tags.push("loyal");
-        tags.push(`goal_${intentGoal}`);
+        const intentTags = buildIntentTags({
+          primaryIntent: c.primaryIntent as any,
+          mentalState: c.mentalState as any,
+          improvementArea: c.improvementArea as any,
+        });
+        tags.push(...intentTags);
+        if (c.primaryIntent) tags.push(`goal_${c.primaryIntent}`);
         const churnRisk = computeChurnRisk(metrics);
 
         return {
@@ -166,9 +206,11 @@ export function registerInactiveRoute(router: Router) {
           metrics,
           tags,
           intent: {
-            primaryGoal: intentGoal === "unknown" ? null : intentGoal,
-            source: "ghl",
-            updatedAt: null,
+            primaryIntent: c.primaryIntent ?? null,
+            mentalState: c.mentalState ?? null,
+            improvementArea: c.improvementArea ?? null,
+            updatedAt: c.intentUpdatedAt?.toISOString() ?? null,
+            source: c.primaryIntent ? "ghl" : null,
           },
           segment,
           churnRisk,
@@ -226,6 +268,9 @@ export function registerInactiveRoute(router: Router) {
           "lastOrderCoupons",
           "lastItems",
           "topCategory",
+          "primaryIntent",
+          "mentalState",
+          "improvementArea",
           "segment",
           "offer",
           "churnRisk",
@@ -269,6 +314,9 @@ export function registerInactiveRoute(router: Router) {
             coupons,
             items,
             row.topCategory ?? "",
+            row.intent?.primaryIntent ?? "",
+            row.intent?.mentalState ?? "",
+            row.intent?.improvementArea ?? "",
             row.segment,
             row.offer?.offer ?? "",
             row.churnRisk ?? "",

@@ -45,6 +45,7 @@ export default function IdleCustomersPage() {
   const [segment, setSegment] = useState<string | null>(null);
   const [intent, setIntent] = useState<string | null>(null);
   const [category, setCategory] = useState<string | null>(null);
+  const [improvement, setImprovement] = useState<string | null>(null);
 
   const { data, loading, error } = useInactiveCustomers({
     days,
@@ -53,6 +54,7 @@ export default function IdleCustomersPage() {
     segment,
     intent,
     category,
+    improvement,
   });
 
   useEffect(() => {
@@ -74,8 +76,9 @@ export default function IdleCustomersPage() {
     if (segment) params.set('segment', segment);
     if (intent) params.set('intent', intent);
     if (category) params.set('category', category);
+    if (improvement) params.set('improvement', improvement);
     return `${API_BASE}/customers/inactive?${params.toString()}`;
-  }, [storeId, days, limit, cursor, segment, intent, category]);
+  }, [storeId, days, limit, cursor, segment, intent, category, improvement]);
 
   const sortedRows = useMemo(() => {
     const list = data?.data ?? [];
@@ -142,6 +145,8 @@ export default function IdleCustomersPage() {
             setDays={setDays}
             intent={intent}
             setIntent={setIntent}
+            improvement={improvement}
+            setImprovement={setImprovement}
             segment={segment}
             setSegment={setSegment}
             category={category}

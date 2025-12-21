@@ -18,6 +18,14 @@ export type IdleCustomer = {
   lastOrderShipping: number | null;
   lastOrderTax: number | null;
   lastOrderCoupons: string[];
+  tags?: string[];
+  intent?: {
+    primaryIntent: string | null;
+    mentalState: string | null;
+    improvementArea: string | null;
+    updatedAt: string | null;
+    source: string | null;
+  };
   metrics?: {
     daysSinceLastOrder: number | null;
     ltv: number | null;
@@ -58,6 +66,7 @@ export function useInactiveCustomers({
   segment,
   intent,
   category,
+  improvement,
 }: {
   days: number;
   limit: number;
@@ -65,6 +74,7 @@ export function useInactiveCustomers({
   segment?: string | null;
   intent?: string | null;
   category?: string | null;
+  improvement?: string | null;
 }) {
   const { store, loading: loadingStore, error: storeError } = useStore();
   const [data, setData] = useState<InactiveResponse | null>(null);
@@ -90,6 +100,7 @@ export function useInactiveCustomers({
     if (segment) params.set('segment', segment);
     if (intentParam) params.set('intent', intentParam);
     if (category) params.set('category', category);
+    if (improvement) params.set('improvement', improvement);
 
     (async () => {
       try {
@@ -117,7 +128,7 @@ export function useInactiveCustomers({
     return () => {
       cancelled = true;
     };
-  }, [store?.id, loadingStore, storeError, days, limit, cursor, segment, intent, category]);
+  }, [store?.id, loadingStore, storeError, days, limit, cursor, segment, intent, category, improvement]);
 
   return { data, loading: loadingStore || loading, error: error ?? storeError ?? null };
 }

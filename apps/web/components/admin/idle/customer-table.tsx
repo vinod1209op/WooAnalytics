@@ -27,6 +27,8 @@ export function CustomerTable({
         <TableRow>
           <TableHead>Name</TableHead>
           <TableHead>Email</TableHead>
+          <TableHead>Safety</TableHead>
+          <TableHead>Intent / Improvement</TableHead>
           <TableHead>Risk</TableHead>
           <TableHead>Segment</TableHead>
           <TableHead>Orders/LTV</TableHead>
@@ -39,14 +41,14 @@ export function CustomerTable({
       <TableBody>
         {loading && (
           <TableRow>
-            <TableCell colSpan={9} className="text-sm text-slate-500">
+            <TableCell colSpan={11} className="text-sm text-slate-500">
               Loading…
             </TableCell>
           </TableRow>
         )}
         {!loading && !hasData && (
           <TableRow>
-            <TableCell colSpan={9} className="text-sm text-slate-500">
+            <TableCell colSpan={11} className="text-sm text-slate-500">
               No idle customers for this window.
             </TableCell>
           </TableRow>
@@ -67,6 +69,36 @@ export function CustomerTable({
               </TableCell>
               <TableCell className="text-sm text-slate-700 dark:text-slate-200">
                 {row.email}
+              </TableCell>
+              <TableCell>
+                {row.tags?.includes('needs_medical_clearance') ? (
+                  <Badge className="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-100">
+                    Needs clearance
+                  </Badge>
+                ) : (
+                  <span className="text-xs text-slate-500">—</span>
+                )}
+              </TableCell>
+              <TableCell className="text-sm text-slate-700 dark:text-slate-200">
+                <div className="flex flex-wrap gap-1">
+                  {row.intent?.primaryIntent ? (
+                    <Badge className="bg-[#f0e5ff] text-[#5b3ba4] dark:bg-purple-900/60 dark:text-purple-50">
+                      {row.intent.primaryIntent.replace(/_/g, ' ')}
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-slate-500">—</span>
+                  )}
+                  {row.intent?.mentalState && (
+                    <Badge variant="outline" className="border-[#d9c7f5] text-xs text-[#5b3ba4] dark:border-purple-900/50 dark:text-purple-100">
+                      {row.intent.mentalState.replace(/_/g, ' ')}
+                    </Badge>
+                  )}
+                  {row.intent?.improvementArea && (
+                    <Badge variant="outline" className="border-[#d9c7f5] text-xs text-[#5b3ba4] dark:border-purple-900/50 dark:text-purple-100">
+                      {row.intent.improvementArea.replace(/_/g, ' ')}
+                    </Badge>
+                  )}
+                </div>
               </TableCell>
               <TableCell className="text-sm text-slate-700 dark:text-slate-200">
                 {row.churnRisk != null ? `${row.churnRisk}/100` : '—'}
