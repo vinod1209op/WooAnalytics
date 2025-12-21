@@ -1,14 +1,16 @@
 # WooAnalytics Monorepo
 
-Next.js dashboard + Express API + Inngest-powered worker for syncing WooCommerce data into Supabase/Postgres, now with an AI assistant chat that calls your analytics endpoints.
+Next.js dashboard + Express API + Inngest-powered worker for syncing WooCommerce data into Supabase/Postgres, now with an AI assistant chat that calls your analytics + idle/win-back endpoints.
 
 ## Stack
 
 - **apps/web** – Next.js 16 client-side dashboard (Tailwind, Recharts) + floating AI chat widget (Ctrl+K to toggle).
 - **apps/api** – Express + Prisma REST API (stores, KPIs, sales, products, segments, analytics, `/assistant/query` for the AI).
-- **apps/worker** – Inngest/Express worker that talks to WooCommerce, upserts into Prisma, and computes analytics tables.
+- **apps/worker** – Inngest/Express worker that talks to WooCommerce, upserts into Prisma, and computes analytics tables (default sync window now 2 days).
 - **prisma/** – Shared Prisma schema targeting Supabase/Postgres.
 - New analytics endpoints for insights: peak revenue day, anomalies, retention highlights, repeat purchase rates, health ratios, performance drops (products/categories), high-value orders, aging orders (all consumed by the AI and usable for UI cards).
+- New customer idle/win-back endpoints: `/customers/inactive` (segments, metrics, churn risk, CSV with tags), `/customers/last-order`, `/customers/:id/winback`, `/customers/rfm-idle`, cron routes `/cron/idle-snapshot`, `/cron/idle-health`.
+- Optional GHL sync: `/cron/idle-sync-ghl` upserts idle customers into GHL with tags; requires backend envs.
 
 ## Requirements
 
@@ -26,15 +28,16 @@ Next.js dashboard + Express API + Inngest-powered worker for syncing WooCommerce
    ```
 
 2. **Configure environment variables**
-   - Copy each example file and fill in real values:
-     ```
-     cp apps/api/.env.example apps/api/.env
-     cp apps/web/.env.local.example apps/web/.env.local
-     cp apps/worker/.env.example apps/worker/.env
-     ```
-   - `DATABASE_URL` should point to the same Supabase/Postgres instance for all packages.
+- Copy each example file and fill in real values:
+  ```
+  cp apps/api/.env.example apps/api/.env
+  cp apps/web/.env.local.example apps/web/.env.local
+  cp apps/worker/.env.example apps/worker/.env
+  ```
+  - `DATABASE_URL` should point to the same Supabase/Postgres instance for all packages.
 - `NEXT_PUBLIC_API_BASE` must match your API URL (`http://localhost:3001` for local dev).
 - API assistant envs: `OPENROUTER_API_KEY` (or compatible), optional `OPENROUTER_BASE_URL`, `STORE_ID` (or ensure `/stores/default` returns one).
+- Optional GHL sync prep: `GHL_PIT` (Private Integration Token) and `GHL_LOCATION_ID` if you want to push idle segments/tags into GHL via `/cron/idle-sync-ghl`; keep backend-only.
 - Worker requires `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` plus Woo auth mode.
 
 3. **Apply Prisma schema**
@@ -125,8 +128,21 @@ prisma/     Shared Prisma schema
 
 ## Notes
 
-- Worker syncs a 30-day window by default; trigger events with `{"full":true}` or `{"since":"YYYY-MM-DD"}` for deeper history.
+- Worker syncs a 2-day window by default; trigger events with `{"full":true}` or `{"since":"YYYY-MM-DD"}` for deeper history.
 - All Prisma writes are idempotent (`upsert`), so rerunning the worker just updates data.
 - Keep `.env` files out of git (already ignored).
+
+## Idle / win-back feature recap
+
+- API:
+  - `/customers/inactive` with metrics (ordersCount, LTV, daysSinceLast, churnRisk), segments (ONE_TIME/REPEAT/LOYAL for 30/60/90), category/segment/intent filters, CSV export with tags for GHL.
+  - `/customers/:id/winback` returns segment, last order + items/categories, offer ladder, message templates, intent placeholder.
+  - `/customers/rfm-idle` combines RFM tier + idle segment; `/cron/idle-snapshot` and `/cron/idle-health` for ops snapshots/alerts.
+  - `/cron/idle-sync-ghl` (POST) to upsert idle contacts + tags into GHL; expects `storeId`, optional `days/segment`, uses `GHL_PIT` + `GHL_LOCATION_ID`.
+- Web dashboard:
+  - `/admin/idle` page with filters (days 30/60/90, segment, category, intent), segment cards (counts, avg days since, avg LTV, per-segment export), churn-risk sorting, CSV export, copy emails, tags column in CSV.
+  - Idle table shows offers/messages, segments, LTV, last order items/categories/coupons.
+- Assistant:
+  - Updated prompt to avoid “top 5” defaults, show segment counts first, and link CSV when asked for “all idle customers.”
 
 Happy hacking!
