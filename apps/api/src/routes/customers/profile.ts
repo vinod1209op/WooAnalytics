@@ -77,7 +77,7 @@ export function registerCustomerProfileRoute(router: Router) {
               product: {
                 select: {
                   categories: {
-                    select: { category: { select: { name: true } } },
+                    select: { category: { select: { id: true, name: true } } },
                   },
                 },
               },
