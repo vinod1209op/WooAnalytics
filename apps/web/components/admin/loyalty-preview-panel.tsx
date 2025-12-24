@@ -382,7 +382,6 @@ export function LoyaltyPreviewPanel() {
           <CardTitle className="text-lg text-[#5b3ba4] dark:text-purple-100">
             Idea bank
           </CardTitle>
-          <CardDescription>All based on existing items and coupons.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {ideaBank.map((idea) => (
