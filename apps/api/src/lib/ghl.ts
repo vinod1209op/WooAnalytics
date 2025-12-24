@@ -112,7 +112,8 @@ export async function fetchContact(contactId: string): Promise<GhlContact> {
     method: "GET",
     headers: defaultHeaders(),
   });
-  return handleGhlResponse(res, "GHL fetch contact");
+  const json = await handleGhlResponse(res, "GHL fetch contact");
+  return json?.contact ?? json;
 }
 
 export async function listCustomFields(locationId: string) {
@@ -131,9 +132,9 @@ export type SearchContactsResult = {
   nextPage?: number | null;
 };
 
-export async function searchContacts(params: {
+export async function searchContactsByQuery(params: {
   locationId: string;
-  tag?: string;
+  query: string;
   page?: number;
   pageLimit?: number;
 }) {
@@ -142,7 +143,7 @@ export async function searchContacts(params: {
     locationId: params.locationId,
     page: params.page ?? 1,
     pageLimit: Math.min(Math.max(params.pageLimit || 50, 1), 200),
-    query: params.tag || "",
+    query: params.query || "",
   };
 
   const res = await fetch(`${GHL_BASE}/contacts/search`, {
@@ -153,7 +154,6 @@ export async function searchContacts(params: {
 
   const json = await handleGhlResponse(res, "GHL search contacts");
   if (Array.isArray(json?.contacts)) {
-    // Filter out contacts without ids to avoid downstream fetch failures.
     const validContacts = (json.contacts as GhlContact[]).filter((c) => c && (c as any).id);
     return {
       contacts: validContacts,
@@ -162,6 +162,20 @@ export async function searchContacts(params: {
     } as SearchContactsResult;
   }
   return { contacts: [], total: 0 };
+}
+
+export async function searchContacts(params: {
+  locationId: string;
+  tag?: string;
+  page?: number;
+  pageLimit?: number;
+}) {
+  return searchContactsByQuery({
+    locationId: params.locationId,
+    query: params.tag || "",
+    page: params.page,
+    pageLimit: params.pageLimit,
+  });
 }
 
 export type { GhlContact };

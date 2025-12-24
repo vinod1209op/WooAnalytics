@@ -1,11 +1,11 @@
 'use client';
 
-import { Fragment, useState, type ReactNode } from 'react';
+import Link from 'next/link';
+import { Fragment, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { IdleCustomer } from '@/hooks/useInactiveCustomers';
-import { cn } from '@/lib/utils';
 
 function formatDate(value: string | null) {
   if (!value) return '—';
@@ -19,49 +19,26 @@ function formatMoney(value: number | null) {
   return `$${value.toFixed(2)}`;
 }
 
-function formatLabel(value: string | null | undefined) {
+function formatPhone(value: string | null) {
   if (!value) return '—';
-  return value.replace(/_/g, ' ');
+  const raw = value.trim();
+  if (!raw) return '—';
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return raw;
+  if (digits.length === 10) {
+    return `+1 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length < 10) {
+    return `+1 ${digits}`;
+  }
+  return `+${digits}`;
 }
 
-function DetailLine({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-      <span className="text-xs font-medium text-slate-500">{label}</span>
-      <div className="min-w-0 text-sm text-slate-700 dark:text-slate-200">{children}</div>
-    </div>
-  );
-}
-
-function DetailSection({
-  title,
-  children,
-  className,
-}: {
-  title: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "min-w-0 space-y-2 rounded-xl border border-[#f0e5ff] bg-white/60 p-3 dark:border-purple-900/40 dark:bg-purple-950/30",
-        className
-      )}
-    >
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
-        {title}
-      </div>
-      <div className="space-y-1">{children}</div>
-    </div>
-  );
-}
+type SortKey = 'id' | 'name' | 'email' | 'orderTotal' | 'risk';
+type SortDir = 'asc' | 'desc';
 
 export function CustomerTable({
   rows,
@@ -73,31 +50,135 @@ export function CustomerTable({
   segmentCounts?: Record<string, number>;
 }) {
   const hasData = rows.length > 0;
-  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
-  const columnCount = 6;
+  const columnCount = 7;
+  const [sortKey, setSortKey] = useState<SortKey>('risk');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
-  const toggleRow = (customerId: number) => {
-    setExpandedRows((prev) => {
-      const next = new Set(prev);
-      if (next.has(customerId)) {
-        next.delete(customerId);
-      } else {
-        next.add(customerId);
+  const sortedRows = useMemo(() => {
+    const list = [...rows];
+    const compare = (a: IdleCustomer, b: IdleCustomer) => {
+      const num = (value: number | null | undefined) =>
+        value == null || Number.isNaN(value) ? null : value;
+      const str = (value: string | null | undefined) =>
+        (value ?? '').toString().toLowerCase();
+
+      let cmp = 0;
+      switch (sortKey) {
+        case 'id': {
+          cmp = (num(a.customerId) ?? -1) - (num(b.customerId) ?? -1);
+          break;
+        }
+        case 'name': {
+          cmp = str(a.name).localeCompare(str(b.name));
+          break;
+        }
+        case 'email': {
+          cmp = str(a.email).localeCompare(str(b.email));
+          break;
+        }
+        case 'orderTotal': {
+          const aTotal = num(a.lastOrderTotal);
+          const bTotal = num(b.lastOrderTotal);
+          if (aTotal == null && bTotal == null) cmp = 0;
+          else if (aTotal == null) cmp = 1;
+          else if (bTotal == null) cmp = -1;
+          else cmp = aTotal - bTotal;
+          break;
+        }
+        case 'risk': {
+          const aRisk = num(a.churnRisk);
+          const bRisk = num(b.churnRisk);
+          if (aRisk == null && bRisk == null) cmp = 0;
+          else if (aRisk == null) cmp = 1;
+          else if (bRisk == null) cmp = -1;
+          else cmp = aRisk - bRisk;
+          if (cmp === 0) {
+            const aDate = a.lastOrderAt ? new Date(a.lastOrderAt).getTime() : 0;
+            const bDate = b.lastOrderAt ? new Date(b.lastOrderAt).getTime() : 0;
+            cmp = aDate - bDate;
+          }
+          break;
+        }
+        default:
+          cmp = 0;
       }
-      return next;
-    });
+
+      return sortDir === 'asc' ? cmp : -cmp;
+    };
+
+    return list.sort(compare);
+  }, [rows, sortKey, sortDir]);
+
+  const setSort = (key: SortKey, dir: SortDir) => {
+    setSortKey(key);
+    setSortDir(dir);
   };
+
+  const SortControl = ({ columnKey }: { columnKey: SortKey }) => (
+    <span className="ml-1 inline-flex flex-col leading-none">
+      <button
+        type="button"
+        aria-label={`Sort ${columnKey} ascending`}
+        onClick={() => setSort(columnKey, 'asc')}
+        className={`text-[10px] ${
+          sortKey === columnKey && sortDir === 'asc'
+            ? 'text-[#5b3ba4]'
+            : 'text-slate-400'
+        }`}
+      >
+        ▲
+      </button>
+      <button
+        type="button"
+        aria-label={`Sort ${columnKey} descending`}
+        onClick={() => setSort(columnKey, 'desc')}
+        className={`text-[10px] ${
+          sortKey === columnKey && sortDir === 'desc'
+            ? 'text-[#5b3ba4]'
+            : 'text-slate-400'
+        }`}
+      >
+        ▼
+      </button>
+    </span>
+  );
 
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead>Last order</TableHead>
-          <TableHead>Risk</TableHead>
+          <TableHead>
+            <div className="flex items-center">
+              ID
+              <SortControl columnKey="id" />
+            </div>
+          </TableHead>
+          <TableHead>
+            <div className="flex items-center">
+              Name
+              <SortControl columnKey="name" />
+            </div>
+          </TableHead>
+          <TableHead>
+            <div className="flex items-center">
+              Email
+              <SortControl columnKey="email" />
+            </div>
+          </TableHead>
+          <TableHead>
+            <div className="flex items-center">
+              Order total
+              <SortControl columnKey="orderTotal" />
+            </div>
+          </TableHead>
+          <TableHead>
+            <div className="flex items-center">
+              Risk
+              <SortControl columnKey="risk" />
+            </div>
+          </TableHead>
           <TableHead>Segment</TableHead>
-          <TableHead className="text-right">Details</TableHead>
+          <TableHead className="text-right">Full details</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -115,42 +196,21 @@ export function CustomerTable({
             </TableCell>
           </TableRow>
         )}
-        {rows.map((row) => {
-          const isExpanded = expandedRows.has(row.customerId);
-          const orderHistory =
-            row.orderHistory && row.orderHistory.length
-              ? row.orderHistory
-              : row.lastItems.length
-              ? [
-                  {
-                    orderId: row.lastOrderId ?? row.customerId,
-                    createdAt: row.lastOrderAt,
-                    total: row.lastOrderTotal,
-                    discountTotal: row.lastOrderDiscount,
-                    shippingTotal: row.lastOrderShipping,
-                    taxTotal: row.lastOrderTax,
-                    coupons: row.lastOrderCoupons,
-                    items: row.lastItems,
-                  },
-                ]
-              : [];
-          const historyLabel =
-            orderHistory.length && row.ordersCount > orderHistory.length
-              ? `Showing latest ${orderHistory.length} of ${row.ordersCount} orders`
-              : orderHistory.length
-              ? `${row.ordersCount} orders`
-              : 'No orders yet';
-          const coupons = row.lastOrderCoupons.join(', ');
+        {sortedRows.map((row) => {
           return (
             <Fragment key={row.customerId}>
               <TableRow>
+                <TableCell className="text-sm text-slate-700 dark:text-slate-200">
+                  #{row.customerId}
+                </TableCell>
                 <TableCell>
                   <div className="flex flex-col gap-1">
                     <span className="font-medium text-[#5b3ba4] dark:text-purple-100">
                       {row.name || 'Unknown'}
                     </span>
-                    <span className="text-xs text-slate-500">#{row.customerId}</span>
-                    {row.phone && <span className="text-xs text-slate-500">{row.phone}</span>}
+                    {row.phone && (
+                      <span className="text-xs text-slate-500">{formatPhone(row.phone)}</span>
+                    )}
                     {row.tags?.includes('needs_medical_clearance') && (
                       <Badge className="w-fit bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-100">
                         Needs clearance
@@ -178,178 +238,18 @@ export function CustomerTable({
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleRow(row.customerId)}
-                    className="border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
-                  >
-                    {isExpanded ? 'Hide' : 'Details'}
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
+                    >
+                      <Link href={`/admin/customers/${row.customerId}`}>Full Details</Link>
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
-              {isExpanded && (
-                <TableRow className="bg-[#f7f1ff] dark:bg-purple-950/30">
-                  <TableCell colSpan={columnCount} className="p-0">
-                    <div className="rounded-2xl border border-[#eadcff] bg-white/80 p-4 shadow-sm dark:border-purple-900/50 dark:bg-purple-950/20">
-                      <div className="grid gap-3 text-sm text-slate-700 break-words dark:text-slate-200">
-                        <div className="grid min-w-0 gap-3 md:grid-cols-3">
-                          <DetailSection title="Profile">
-                            <DetailLine label="Name">{row.name || 'Unknown'}</DetailLine>
-                            <DetailLine label="Email">{row.email || '—'}</DetailLine>
-                            <DetailLine label="Phone">{row.phone || '—'}</DetailLine>
-                            <DetailLine label="Customer ID">{row.customerId}</DetailLine>
-                            <DetailLine label="Last active">{formatDate(row.lastActiveAt)}</DetailLine>
-                          </DetailSection>
-                          <DetailSection title="Intent">
-                            <DetailLine label="Primary">
-                              {formatLabel(row.intent?.primaryIntent ?? null)}
-                            </DetailLine>
-                            <DetailLine label="Mental state">
-                              {formatLabel(row.intent?.mentalState ?? null)}
-                            </DetailLine>
-                            <DetailLine label="Improvement">
-                              {formatLabel(row.intent?.improvementArea ?? null)}
-                            </DetailLine>
-                            <DetailLine label="Source">{row.intent?.source ?? '—'}</DetailLine>
-                            <DetailLine label="Updated">
-                              {formatDate(row.intent?.updatedAt ?? null)}
-                            </DetailLine>
-                          </DetailSection>
-                          <DetailSection title="Segmentation">
-                            <DetailLine label="Segment">{row.segment ?? '—'}</DetailLine>
-                            <DetailLine label="Top category">{row.topCategory ?? '—'}</DetailLine>
-                            <DetailLine label="Churn risk">
-                              {row.churnRisk != null ? `${row.churnRisk}/100` : '—'}
-                            </DetailLine>
-                            <DetailLine label="Days since last order">
-                              {row.metrics?.daysSinceLastOrder ?? '—'}
-                            </DetailLine>
-                            <DetailLine label="Avg days between">
-                              {row.metrics?.avgDaysBetweenOrders ?? '—'}
-                            </DetailLine>
-                          </DetailSection>
-                        </div>
-                        <div className="grid min-w-0 gap-3 md:grid-cols-4">
-                          <DetailSection title="Orders">
-                            <DetailLine label="Total orders">{row.ordersCount}</DetailLine>
-                            <DetailLine label="First order">
-                              {formatDate(row.firstOrderAt)}
-                            </DetailLine>
-                            <DetailLine label="LTV">{formatMoney(row.metrics?.ltv ?? null)}</DetailLine>
-                          </DetailSection>
-                          <DetailSection title="Last order">
-                            <DetailLine label="Date">{formatDate(row.lastOrderAt)}</DetailLine>
-                            <DetailLine label="Total">{formatMoney(row.lastOrderTotal)}</DetailLine>
-                            <DetailLine label="Discount">
-                              {formatMoney(row.lastOrderDiscount)}
-                            </DetailLine>
-                            <DetailLine label="Shipping">
-                              {formatMoney(row.lastOrderShipping)}
-                            </DetailLine>
-                            <DetailLine label="Tax">{formatMoney(row.lastOrderTax)}</DetailLine>
-                          </DetailSection>
-                          <DetailSection title="Items" className="md:col-span-2">
-                            <div className="text-xs text-slate-500">{historyLabel}</div>
-                            {orderHistory.length ? (
-                              <div className="space-y-3">
-                                {orderHistory.map((order) => (
-                                  <div
-                                    key={order.orderId}
-                                    className="min-w-0 rounded-lg border border-[#eadcff] bg-white/80 p-2 shadow-sm dark:border-purple-900/50 dark:bg-purple-950/30"
-                                  >
-                                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-                                      <span className="font-medium text-slate-600 dark:text-slate-300">
-                                        Order #{order.orderId}
-                                      </span>
-                                      <span>
-                                        {formatDate(order.createdAt)} • {formatMoney(order.total)}
-                                      </span>
-                                    </div>
-                                    {order.items.length ? (
-                                      <ul className="mt-2 space-y-2">
-                                        {order.items.map((item, index) => {
-                                          const name = item.name ?? 'Item';
-                                          const sku = item.sku ? `SKU ${item.sku}` : null;
-                                          const categories =
-                                            item.categories && item.categories.length
-                                              ? item.categories.join(', ')
-                                              : null;
-                                          return (
-                                            <li
-                                              key={`${order.orderId}-${item.productId ?? index}`}
-                                              className="break-words rounded-md border border-[#f0e5ff] bg-white/80 p-2 text-xs text-slate-700 dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100"
-                                            >
-                                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                                <span className="font-medium">
-                                                  {name} x{item.quantity}
-                                                </span>
-                                                <span className="text-slate-500 dark:text-slate-300">
-                                                  {formatMoney(item.lineTotal)}
-                                                </span>
-                                              </div>
-                                              {(sku || categories) && (
-                                                <div className="mt-1 break-words text-[11px] text-slate-500 dark:text-slate-300">
-                                                  {sku && <span>{sku}</span>}
-                                                  {sku && categories && <span className="px-1">•</span>}
-                                                  {categories && <span>{categories}</span>}
-                                                </div>
-                                              )}
-                                            </li>
-                                          );
-                                        })}
-                                      </ul>
-                                    ) : (
-                                      <div className="mt-2 text-xs text-slate-500">
-                                        No items listed for this order.
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-sm text-slate-500">No orders found.</div>
-                            )}
-                          </DetailSection>
-                        </div>
-                        <div className="grid min-w-0 gap-3 md:grid-cols-3">
-                          <DetailSection title="Coupons">
-                            <DetailLine label="Codes">{coupons || '—'}</DetailLine>
-                          </DetailSection>
-                          <DetailSection title="Offer">
-                            <DetailLine label="Type">
-                              {formatLabel(row.offer?.offer ?? null)}
-                            </DetailLine>
-                            <DetailLine label="Value">
-                              {row.offer?.value != null ? row.offer.value : '—'}
-                            </DetailLine>
-                            <DetailLine label="Message">{row.offer?.message ?? '—'}</DetailLine>
-                          </DetailSection>
-                          <DetailSection title="Tags">
-                            <DetailLine label="Labels">
-                              {row.tags && row.tags.length ? (
-                                <div className="flex flex-wrap gap-1">
-                                  {row.tags.map((tag) => (
-                                    <Badge
-                                      key={tag}
-                                      variant="outline"
-                                      className="max-w-full break-words border-[#d9c7f5] text-xs text-[#5b3ba4] dark:border-purple-900/50 dark:text-purple-100"
-                                    >
-                                      {tag}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              ) : (
-                                '—'
-                              )}
-                            </DetailLine>
-                          </DetailSection>
-                        </div>
-                      </div>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
             </Fragment>
           );
         })}

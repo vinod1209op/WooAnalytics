@@ -43,6 +43,10 @@ async function fetchCustomersPage(params: {
 }) {
   const baseWhere = params.where as any;
   const idFilter = params.afterId ? { id: { gt: params.afterId } } : {};
+  const orderSelect = {
+    ...lastOrderSelect,
+    take: ORDER_HISTORY_LIMIT ?? undefined,
+  };
   return prisma.customer.findMany({
     where: { ...baseWhere, ...idFilter },
     orderBy: { id: "asc" },
@@ -61,7 +65,7 @@ async function fetchCustomersPage(params: {
       intentUpdatedAt: true,
       rawQuizAnswers: true,
       _count: { select: { orders: true } },
-      orders: { ...lastOrderSelect, ...(ORDER_HISTORY_LIMIT ? { take: ORDER_HISTORY_LIMIT } : {}) },
+      orders: orderSelect,
     },
   });
 }
