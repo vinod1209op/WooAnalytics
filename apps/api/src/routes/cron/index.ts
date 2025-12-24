@@ -15,8 +15,8 @@ function requireCronAuth(req: Request) {
   }
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number): Promise<void> {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
 registerQuizSyncRoute(router, { requireCronAuth, sleep });
