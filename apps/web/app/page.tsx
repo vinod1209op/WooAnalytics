@@ -59,7 +59,7 @@ export default function Page() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 rounded-2xl border border-[#d9c7f5] bg-white/80 p-1.5 shadow-sm dark:border-purple-900/50 dark:bg-purple-950/40">
             <FilterBar
               filter={filter}
               onChange={setFilter}

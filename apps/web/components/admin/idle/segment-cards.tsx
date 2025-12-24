@@ -21,7 +21,7 @@ export function SegmentCards({
   apiBase: string;
 }) {
   return (
-    <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
       {Object.entries(summary).map(([seg, info]) => {
         const avgDays =
           info.daysCount > 0 ? Math.round((info.daysSum / info.daysCount) * 10) / 10 : 0;
@@ -38,7 +38,7 @@ export function SegmentCards({
         return (
           <Card
             key={seg}
-            className="border-[#d9c7f5] bg-white/90 p-2 shadow-sm dark:border-purple-900/50 dark:bg-purple-950/30"
+            className="border-[#d9c7f5] bg-gradient-to-b from-white via-[#faf5ff] to-white/90 p-2.5 shadow-[0_8px_24px_rgba(93,63,163,0.08)] backdrop-blur-sm dark:border-purple-900/50 dark:bg-gradient-to-b dark:from-[#1a0f2b] dark:via-[#201338] dark:to-[#1a0f2b]/80"
           >
             <div className="flex items-center justify-between gap-2 pb-1">
               <Badge
@@ -58,10 +58,21 @@ export function SegmentCards({
                 <a href={segCsvUrl}>Export</a>
               </Button>
             </div>
-            <div className="space-y-0.5 text-sm text-slate-700 dark:text-slate-200">
-              <div>Count: {info.count}</div>
-              <div>Avg days since last: {avgDays || '—'}</div>
-              <div>Avg LTV: ${avgLtv || 0}</div>
+            <div className="space-y-1 text-sm text-slate-700 dark:text-slate-200">
+              <div>
+                <span className="text-xs uppercase tracking-wide text-slate-500">Count</span>{' '}
+                {info.count}
+              </div>
+              <div>
+                <span className="text-xs uppercase tracking-wide text-slate-500">
+                  Avg days since last
+                </span>{' '}
+                {avgDays || '—'}
+              </div>
+              <div>
+                <span className="text-xs uppercase tracking-wide text-slate-500">Avg LTV</span> $
+                {avgLtv || 0}
+              </div>
             </div>
           </Card>
         );

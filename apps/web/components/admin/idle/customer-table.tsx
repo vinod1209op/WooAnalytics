@@ -145,40 +145,44 @@ export function CustomerTable({
 
   return (
     <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>
+      <TableHeader className="bg-[#f7f1ff]">
+        <TableRow className="border-[#eadcff]">
+          <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
               ID
               <SortControl columnKey="id" />
             </div>
           </TableHead>
-          <TableHead>
+          <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
               Name
               <SortControl columnKey="name" />
             </div>
           </TableHead>
-          <TableHead>
+          <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
               Email
               <SortControl columnKey="email" />
             </div>
           </TableHead>
-          <TableHead>
+          <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
               Order total
               <SortControl columnKey="orderTotal" />
             </div>
           </TableHead>
-          <TableHead>
+          <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
               Risk
               <SortControl columnKey="risk" />
             </div>
           </TableHead>
-          <TableHead>Segment</TableHead>
-          <TableHead className="text-right">Full details</TableHead>
+          <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
+            Segment
+          </TableHead>
+          <TableHead className="text-right text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
+            Details
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -245,7 +249,7 @@ export function CustomerTable({
                       size="sm"
                       className="border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
                     >
-                      <Link href={`/admin/customers/${row.customerId}`}>Full Details</Link>
+                      <Link href={`/admin/customers/${row.customerId}`}>Details</Link>
                     </Button>
                   </div>
                 </TableCell>

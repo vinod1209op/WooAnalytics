@@ -57,7 +57,7 @@ export function RecentOrdersTable({ filter }: Props) {
                 const rowBg =
                   idx % 2 === 0
                     ? 'bg-white dark:bg-slate-900'
-                    : 'bg-slate-50 dark:bg-slate-900/60';
+                    : 'bg-[#faf5ff] dark:bg-slate-900/60';
                 const date = new Date(o.date).toLocaleDateString(undefined, {
                   month: 'short',
                   day: 'numeric',
@@ -65,7 +65,7 @@ export function RecentOrdersTable({ filter }: Props) {
                 return (
                   <TableRow
                     key={o.id}
-                    className={`${rowBg} border-b border-slate-100 last:border-0 hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-800/80`}
+                    className={`${rowBg} border-b border-slate-100 last:border-0 hover:bg-[#f7f1ff]/70 dark:border-slate-800 dark:hover:bg-purple-900/40`}
                   >
                     <TableCell className="py-2 px-2 text-sm font-medium text-slate-900 dark:text-slate-50 whitespace-nowrap">
                       #{o.id} • {date}

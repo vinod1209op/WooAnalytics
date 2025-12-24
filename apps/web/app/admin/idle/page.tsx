@@ -10,7 +10,6 @@ import { SegmentCards } from '@/components/admin/idle/segment-cards';
 import { CustomerTable } from '@/components/admin/idle/customer-table';
 import { useMetaFilters } from '@/hooks/useMetaFilters';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE?.trim() || 'http://localhost:3001';
 
@@ -166,7 +165,7 @@ export default function IdleCustomersPage() {
 
   return (
     <div className="space-y-6">
-      <Card className="border-[#d9c7f5] bg-white/80 p-4 shadow-sm backdrop-blur dark:border-purple-900/50 dark:bg-purple-950/30">
+      <div className="flex flex-col gap-3 rounded-2xl bg-white/80 p-4 shadow-sm ring-1 ring-[#d9c7f5] backdrop-blur dark:bg-purple-950/40 dark:ring-purple-900/50 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Badge className="bg-purple-600 text-white shadow-sm dark:bg-purple-500">Admin</Badge>
@@ -205,11 +204,41 @@ export default function IdleCustomersPage() {
             {error}
           </Card>
         )}
+      </div>
+
+      <Card className="border-[#d9c7f5] bg-white/80 p-4 shadow-sm backdrop-blur dark:border-purple-900/50 dark:bg-purple-950/40">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
+            Segment overview
+          </div>
+          <span className="text-xs text-slate-500">
+            {Object.keys(segmentSummary).length} segments
+          </span>
+        </div>
+        <div>
+          <SegmentCards
+            summary={segmentSummary}
+            storeId={storeId}
+            days={days}
+            limit={limit}
+            apiBase={API_BASE}
+          />
+        </div>
       </Card>
 
-      <Card className="border-[#d9c7f5] bg-white/80 p-4 shadow-sm backdrop-blur dark:border-purple-900/50 dark:bg-purple-950/30">
-        <div className="overflow-auto">
-          <SegmentCards summary={segmentSummary} storeId={storeId} days={days} limit={limit} apiBase={API_BASE} />
+      <Card className="border-[#d9c7f5] bg-white/80 p-4 shadow-sm backdrop-blur dark:border-purple-900/50 dark:bg-purple-950/40">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
+              Idle customers
+            </div>
+            <div className="text-sm text-slate-500">
+              {data?.count ?? 0} rows • Page {currentPage} of {totalPages}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 overflow-auto rounded-2xl border border-[#f0e5ff] bg-white/80 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/40">
           <CustomerTable rows={sortedRows} loading={loading} segmentCounts={data?.segmentCounts} />
         </div>
 

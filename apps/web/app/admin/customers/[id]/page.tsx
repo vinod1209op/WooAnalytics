@@ -54,6 +54,64 @@ function formatPhone(value?: string | null) {
   return `+${digits}`;
 }
 
+function stripQuestionNumber(label: string) {
+  const cleaned = label.replace(/^\s*\d+\s*[).:-]\s*/g, '').trim();
+  return cleaned || label.trim() || 'Question';
+}
+
+function isNonQuestionField(label?: string | null, fieldKey?: string | null) {
+  const hay = `${label ?? ''} ${fieldKey ?? ''}`.toLowerCase();
+  if (!hay.trim()) return false;
+  if (hay.includes('total spend')) return true;
+  if (hay.includes('ltv') || hay.includes('lifetime value')) return true;
+  const orderTokens = ['order', 'orders'];
+  const metricTokens = ['total', 'count', 'date', 'value', 'subscription', 'spend'];
+  if (orderTokens.some((token) => hay.includes(token)) && metricTokens.some((token) => hay.includes(token))) {
+    return true;
+  }
+  return false;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function formatQuizKey(key: string) {
+  if (!key) return 'Value';
+  const spaced = key
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+function renderQuizValue(value: unknown) {
+  if (value == null || value === '') {
+    return <span className="text-slate-400">—</span>;
+  }
+  if (Array.isArray(value)) {
+    return (
+      <ul className="space-y-1">
+        {value.map((item, index) => (
+          <li key={`${index}-${String(item)}`} className="flex gap-2">
+            <span className="text-slate-400">•</span>
+            <span className="break-words">{String(item)}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  if (isRecord(value)) {
+    return (
+      <pre className="whitespace-pre-wrap text-xs text-slate-500">
+        {JSON.stringify(value, null, 2)}
+      </pre>
+    );
+  }
+  return <span className="whitespace-pre-wrap break-words">{String(value)}</span>;
+}
+
 function StatCard({
   label,
   value,
@@ -64,7 +122,7 @@ function StatCard({
   hint?: string;
 }) {
   return (
-    <div className="rounded-xl border border-[#eadcff] bg-white/70 p-3 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
+    <div className="rounded-xl border border-[#eadcff] bg-gradient-to-br from-white via-white to-[#f6efff] p-3 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
       <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
         {label}
       </div>
@@ -83,23 +141,10 @@ export default function CustomerProfilePage() {
 
   const ghlContact = data?.ghl?.contact ?? null;
   const ghlTags = ghlContact?.tags ?? [];
-  const missingFromDb: string[] = [];
-  if (data) {
-    const ghlName = [ghlContact?.firstName, ghlContact?.lastName].filter(Boolean).join(' ');
-    if (!data.customer.name && ghlName) {
-      missingFromDb.push(`Name (GHL: ${ghlName})`);
-    }
-    if (!data.customer.phone && ghlContact?.phone) {
-      missingFromDb.push(`Phone (GHL: ${formatPhone(ghlContact.phone)})`);
-    }
-    if (!data.customer.email && ghlContact?.email) {
-      missingFromDb.push(`Email (GHL: ${ghlContact.email})`);
-    }
-  }
 
   return (
     <div className="space-y-6">
-      <Card className="border-[#d9c7f5] bg-white/80 p-4 shadow-sm backdrop-blur dark:border-purple-900/50 dark:bg-purple-950/30">
+      <Card className="border-[#d9c7f5] bg-gradient-to-br from-[#fbf7ff] via-white to-[#f7f0ff] p-4 shadow-sm backdrop-blur dark:border-purple-900/50 dark:bg-purple-950/30">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Badge className="bg-purple-600 text-white shadow-sm dark:bg-purple-500">
@@ -137,98 +182,147 @@ export default function CustomerProfilePage() {
       {data && (
         <>
           <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div>
-                <div className="text-sm text-slate-500">Customer</div>
+            <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr]">
+              <div className="space-y-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Customer
+                </div>
                 {(() => {
                   const displayName = data.customer.name || nameFromEmail(data.customer.email);
                   return (
-                    <div className="mt-1 text-2xl font-semibold text-[#5b3ba4] dark:text-purple-100">
+                    <div className="text-2xl font-semibold text-[#5b3ba4] dark:text-purple-100">
                       {displayName}
                     </div>
                   );
                 })()}
-                <div className="mt-2 flex flex-wrap items-start gap-3 text-sm text-slate-600 dark:text-slate-300">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex flex-wrap gap-3">
-                      <span>#{data.customer.id}</span>
-                      {data.customer.wooId && <span>Woo: {data.customer.wooId}</span>}
-                      {data.insights.repeatBuyer && (
-                        <Badge className="bg-[#f0e5ff] text-[#5b3ba4] dark:bg-purple-900/60 dark:text-purple-50">
-                          Repeat buyer
-                        </Badge>
-                      )}
-                    </div>
-                    {ghlContact?.id && <span>GHL: {ghlContact.id}</span>}
-                  </div>
-                  
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                  <Badge
+                    variant="outline"
+                    className="border-[#dcc7ff] bg-white/60 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100"
+                  >
+                    ID {data.customer.id}
+                  </Badge>
+                  {data.customer.wooId && (
+                    <Badge
+                      variant="outline"
+                      className="border-[#dcc7ff] bg-white/60 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100"
+                    >
+                      Woo {data.customer.wooId}
+                    </Badge>
+                  )}
+                  {ghlContact?.id && (
+                    <Badge
+                      variant="outline"
+                      className="border-[#dcc7ff] bg-white/60 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100"
+                    >
+                      GHL {ghlContact.id}
+                    </Badge>
+                  )}
+                  {data.insights.repeatBuyer && (
+                    <Badge className="bg-[#f0e5ff] text-[#5b3ba4] dark:bg-purple-900/60 dark:text-purple-50">
+                      Repeat buyer
+                    </Badge>
+                  )}
                 </div>
               </div>
-              <div className="grid gap-2 text-sm text-slate-600 dark:text-slate-300">
-                <div>Email: {data.customer.email}</div>
-                <div>Phone: {formatPhone(data.customer.phone)}</div>
-                <div>Joined: {formatDate(data.customer.createdAt)}</div>
-                <div>Last active: {formatDate(data.customer.lastActiveAt)}</div>
-              </div>
-            </div>
-            {ghlTags.length > 0 && (
-              <div className="mt-4 space-y-3">
-                {ghlTags.length > 0 && (
+              <div className="rounded-xl border border-[#eadcff] bg-white/70 p-3 text-sm text-slate-600 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-200">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Contact
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <div>
-                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Tags
+                    <div className="text-[11px] uppercase tracking-wide text-slate-500">
+                      Email
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {ghlTags.map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant="outline"
-                          className="max-w-full break-words border-[#dcc7ff] bg-[#f6efff] text-xs text-[#5b3ba4] shadow-sm dark:border-purple-900/50 dark:bg-purple-900/40 dark:text-purple-100"
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
+                    <div className="mt-1 text-sm text-slate-700 dark:text-slate-100">
+                      {data.customer.email || '—'}
                     </div>
                   </div>
-                )}
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-slate-500">
+                      Phone
+                    </div>
+                    <div className="mt-1 text-sm text-slate-700 dark:text-slate-100">
+                      {formatPhone(data.customer.phone)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-slate-500">
+                      Joined
+                    </div>
+                    <div className="mt-1 text-sm text-slate-700 dark:text-slate-100">
+                      {formatDate(data.customer.createdAt)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-slate-500">
+                      Last active
+                    </div>
+                    <div className="mt-1 text-sm text-slate-700 dark:text-slate-100">
+                      {formatDate(data.customer.lastActiveAt)}
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
+              {ghlTags.length > 0 && (
+                <div className="lg:col-span-2">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Tags
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {ghlTags.map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant="outline"
+                        className="max-w-full break-words border-[#dcc7ff] bg-[#f6efff] text-xs text-[#5b3ba4] shadow-sm dark:border-purple-900/50 dark:bg-purple-900/40 dark:text-purple-100"
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </Card>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Orders" value={data.insights.ordersCount} />
-            <StatCard label="Total spend" value={formatMoney(data.insights.totalSpend)} />
-            <StatCard label="Avg order" value={formatMoney(data.insights.avgOrderValue)} />
-            <StatCard
-              label="Orders / month"
-              value={data.insights.ordersPerMonth ?? '—'}
-              hint="Based on first → last order"
-            />
-            <StatCard
-              label="Avg days between"
-              value={data.insights.avgDaysBetweenOrders ?? '—'}
-            />
-            <StatCard
-              label="Days since last"
-              value={data.insights.daysSinceLastOrder ?? '—'}
-            />
-            <StatCard label="First order" value={formatDate(data.insights.firstOrderAt)} />
-            <StatCard label="Last order" value={formatDate(data.insights.lastOrderAt)} />
+          <div className="space-y-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
+              Customer insights
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <StatCard label="Orders" value={data.insights.ordersCount} />
+              <StatCard label="Total spend" value={formatMoney(data.insights.totalSpend)} />
+              <StatCard label="Avg order" value={formatMoney(data.insights.avgOrderValue)} />
+              <StatCard
+                label="Orders / month"
+                value={data.insights.ordersPerMonth ?? '—'}
+                hint="Based on first → last order"
+              />
+              <StatCard
+                label="Avg days between"
+                value={data.insights.avgDaysBetweenOrders ?? '—'}
+              />
+              <StatCard
+                label="Days since last"
+                value={data.insights.daysSinceLastOrder ?? '—'}
+              />
+              <StatCard label="First order" value={formatDate(data.insights.firstOrderAt)} />
+              <StatCard label="Last order" value={formatDate(data.insights.lastOrderAt)} />
+            </div>
           </div>
 
-          <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
-            <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
-              Intent
-            </div>
-            <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
-              <div>Primary: {formatLabel(data.customer.intent?.primaryIntent ?? null)}</div>
-              <div>Mental state: {formatLabel(data.customer.intent?.mentalState ?? null)}</div>
-              <div>Improvement: {formatLabel(data.customer.intent?.improvementArea ?? null)}</div>
-              <div>Updated: {formatDate(data.customer.intent?.updatedAt ?? null)}</div>
-            </div>
-          </Card>
-
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
+              <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
+                Intent
+              </div>
+              <div className="mt-3 grid gap-2 text-sm text-slate-700 dark:text-slate-200 sm:grid-cols-2">
+                <div>Primary: {formatLabel(data.customer.intent?.primaryIntent ?? null)}</div>
+                <div>Mental state: {formatLabel(data.customer.intent?.mentalState ?? null)}</div>
+                <div>Improvement: {formatLabel(data.customer.intent?.improvementArea ?? null)}</div>
+                <div>Updated: {formatDate(data.customer.intent?.updatedAt ?? null)}</div>
+              </div>
+            </Card>
             <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
               <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
                 Top products
@@ -309,7 +403,7 @@ export default function CustomerProfilePage() {
                     key={order.id}
                     className="rounded-xl border border-[#eadcff] bg-white/80 p-3 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/40"
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#f0e5ff] pb-2 dark:border-purple-900/40">
                       <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                         Order #{order.id}
                       </div>
@@ -317,7 +411,7 @@ export default function CustomerProfilePage() {
                         {formatDate(order.createdAt)} • {formatMoney(order.total)}
                       </div>
                     </div>
-                    <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
                       {order.status && <span>Status: {order.status}</span>}
                       {order.paymentMethod && <span>Payment: {order.paymentMethod}</span>}
                       {(order.shippingCity || order.shippingCountry) && (
@@ -344,7 +438,7 @@ export default function CustomerProfilePage() {
                                 className="rounded-md border border-[#f0e5ff] bg-white/80 p-2 text-xs text-slate-700 dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100"
                               >
                                 <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <span className="font-medium">
+                                  <span className="min-w-0 flex-1 font-medium">
                                     {item.name ?? 'Item'} x{item.quantity}
                                   </span>
                                   <span className="text-slate-500 dark:text-slate-300">
@@ -394,13 +488,172 @@ export default function CustomerProfilePage() {
           </Card>
 
           <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
-            <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
-              Raw quiz answers
-            </div>
             {data.customer.rawQuizAnswers ? (
-              <pre className="mt-3 max-h-72 overflow-auto rounded-lg border border-[#f0e5ff] bg-white/70 p-3 text-xs text-slate-600 dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-200">
-                {JSON.stringify(data.customer.rawQuizAnswers, null, 2)}
-              </pre>
+              (() => {
+                const quiz = data.customer.rawQuizAnswers as {
+                  raw?: Record<string, unknown>;
+                  rawFields?: Array<{
+                    id?: string;
+                    name?: string | null;
+                    fieldKey?: string | null;
+                    value?: unknown;
+                  }>;
+                  messaging?: Record<string, unknown>;
+                  derived?: Record<string, unknown>;
+                };
+                const quizFields = Array.isArray(quiz?.rawFields) ? quiz.rawFields : [];
+                const quizRaw = isRecord(quiz?.raw) ? quiz.raw : {};
+                const quizMessaging = isRecord(quiz?.messaging) ? quiz.messaging : null;
+                const quizDerived = isRecord(quiz?.derived) ? quiz.derived : null;
+                const entries = quizFields.length
+                  ? quizFields
+                      .map((field) => {
+                        const rawLabel = field.name || field.fieldKey || field.id || 'Question';
+                        return {
+                          id: field.id,
+                          rawLabel,
+                          fieldKey: field.fieldKey,
+                          label: stripQuestionNumber(rawLabel),
+                          value: field.value,
+                        };
+                      })
+                      .filter((entry) => !isNonQuestionField(entry.rawLabel, entry.fieldKey))
+                  : Object.entries(quizRaw)
+                      .map(([key, value]) => ({
+                        id: key,
+                        rawLabel: key,
+                        fieldKey: null,
+                        label: stripQuestionNumber(key),
+                        value,
+                      }))
+                      .filter((entry) => !isNonQuestionField(entry.rawLabel, entry.fieldKey));
+
+                return (
+                  <details className="group">
+                    <summary className="cursor-pointer list-none">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-transparent pb-2 group-open:border-[#f0e5ff] dark:group-open:border-purple-900/40">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
+                          Questions answered
+                        </div>
+                        <span className="text-[11px] uppercase tracking-wide text-slate-400 group-open:text-slate-500">
+                          Toggle
+                        </span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                        <Badge
+                          variant="outline"
+                          className="border-[#dcc7ff] bg-white/60 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100"
+                        >
+                          Responses {entries.length}
+                        </Badge>
+                        {quizMessaging && (
+                          <Badge
+                            variant="outline"
+                            className="border-[#dcc7ff] bg-white/60 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100"
+                          >
+                            Messaging {Object.keys(quizMessaging).length}
+                          </Badge>
+                        )}
+                        {quizDerived && (
+                          <Badge
+                            variant="outline"
+                            className="border-[#dcc7ff] bg-white/60 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100"
+                          >
+                            Derived {Object.keys(quizDerived).length}
+                          </Badge>
+                        )}
+                      </div>
+                    </summary>
+
+                    {entries.length > 0 ? (
+                      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                        {entries.map((entry, index) => (
+                          <details
+                            key={`${entry.id ?? entry.label}-${index}`}
+                            className="group rounded-lg border border-[#f0e5ff] bg-white/80 p-3 text-sm text-slate-700 shadow-sm transition hover:border-[#d4bfff] dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100"
+                          >
+                            <summary className="cursor-pointer list-none">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="flex items-start gap-3">
+                                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-[#dcc7ff] bg-white text-xs font-semibold text-[#5b3ba4] shadow-sm dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100">
+                                    {index + 1}
+                                  </span>
+                                  <div>
+                                    <div className="text-[11px] uppercase tracking-wide text-slate-500">
+                                      Question {index + 1}
+                                    </div>
+                                    <div className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-100">
+                                      {entry.label}
+                                    </div>
+                                  </div>
+                                </div>
+                                {entry.id && (
+                                  <span className="text-[11px] uppercase tracking-wide text-slate-400">
+                                    ID {entry.id}
+                                  </span>
+                                )}
+                              </div>
+                            </summary>
+                            <div className="mt-3 border-t border-[#f0e5ff] pt-3 text-sm text-slate-600 dark:border-purple-900/40 dark:text-slate-200">
+                              <div className="text-[11px] uppercase tracking-wide text-slate-500">
+                                Answer
+                              </div>
+                              <div className="mt-2">{renderQuizValue(entry.value)}</div>
+                            </div>
+                          </details>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-3 text-sm text-slate-500">No quiz answers found.</div>
+                    )}
+
+                    {(quizMessaging || quizDerived) && (
+                      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                        {quizMessaging && (
+                          <div className="rounded-lg border border-[#f0e5ff] bg-white/80 p-3 text-sm text-slate-700 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100">
+                            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Messaging cues
+                            </div>
+                            <div className="mt-2 space-y-2">
+                              {Object.entries(quizMessaging)
+                                .filter(([key]) => key !== 'resultFields')
+                                .map(([key, value]) => (
+                                  <div key={key}>
+                                    <div className="text-[11px] uppercase tracking-wide text-slate-500">
+                                      {formatQuizKey(key)}
+                                    </div>
+                                    <div className="mt-1 text-sm text-slate-600 dark:text-slate-200">
+                                      {renderQuizValue(value)}
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                        {quizDerived && (
+                          <div className="rounded-lg border border-[#f0e5ff] bg-white/80 p-3 text-sm text-slate-700 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100">
+                            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Derived insights
+                            </div>
+                            <div className="mt-2 space-y-2">
+                              {Object.entries(quizDerived).map(([key, value]) => (
+                                <div key={key}>
+                                  <div className="text-[11px] uppercase tracking-wide text-slate-500">
+                                    {formatQuizKey(key)}
+                                  </div>
+                                  <div className="mt-1 text-sm text-slate-600 dark:text-slate-200">
+                                    {renderQuizValue(value)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </details>
+                );
+              })()
             ) : (
               <div className="mt-3 text-sm text-slate-500">No quiz answers found.</div>
             )}

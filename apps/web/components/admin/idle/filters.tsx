@@ -61,8 +61,9 @@ export function IdleFilters({
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-col gap-3">
+      <div className="rounded-2xl border border-[#eadcff] bg-white/70 p-2 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/40">
+        <div className="flex flex-wrap items-center gap-2">
         <Select
           value={String(days)}
           onValueChange={(val) => {
@@ -126,10 +127,10 @@ export function IdleFilters({
         >
           <a href={csvUrl}>Export CSV</a>
         </Button>
-      </div>
+        </div>
 
-      {showAdvanced && (
-        <div className="flex flex-wrap items-center gap-2">
+        {showAdvanced && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-[#f0e5ff] pt-2 dark:border-purple-900/40">
           <Select
             value={intent ?? 'all'}
             onValueChange={(val) => {
@@ -189,8 +190,9 @@ export function IdleFilters({
               ))}
             </SelectContent>
           </Select>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

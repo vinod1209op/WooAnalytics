@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LoyaltyPreviewPanel } from '@/components/admin/loyalty-preview-panel';
 
 type SyncResult = {
   processed?: number;
@@ -220,6 +221,27 @@ export default function GhlPage() {
             ) : null}
           </div>
         )}
+      </Card>
+
+      <Card className="border-[#d9c7f5] bg-white/80 p-4 shadow-sm backdrop-blur dark:border-purple-900/50 dark:bg-purple-950/30">
+        <details className="group">
+          <summary className="cursor-pointer list-none">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className={labelClass}>Loyalty preview</div>
+                <div className="text-sm text-slate-500">
+                  Draft view of rewards, messaging, and tiers.
+                </div>
+              </div>
+              <span className="text-xs text-slate-400 group-open:text-slate-500">
+                Toggle
+              </span>
+            </div>
+          </summary>
+          <div className="mt-4">
+            <LoyaltyPreviewPanel />
+          </div>
+        </details>
       </Card>
     </div>
   );
