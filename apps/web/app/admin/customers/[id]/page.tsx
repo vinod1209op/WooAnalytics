@@ -24,6 +24,18 @@ function formatLabel(value?: string | null) {
   return value.replace(/_/g, ' ');
 }
 
+function nameFromEmail(email?: string | null) {
+  if (!email) return 'Unknown';
+  const handle = email.split('@')[0] || '';
+  if (!handle) return 'Unknown';
+  return handle
+    .replace(/[._-]+/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 function formatPhone(value?: string | null) {
   if (!value) return '—';
   const raw = value.trim();
@@ -40,16 +52,6 @@ function formatPhone(value?: string | null) {
     return `+1 ${digits}`;
   }
   return `+${digits}`;
-}
-
-function formatFieldValue(value: any) {
-  if (value === null || value === undefined) return '—';
-  if (typeof value === 'string' || typeof value === 'number') return String(value);
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
 }
 
 function StatCard({
@@ -78,6 +80,22 @@ export default function CustomerProfilePage() {
   const params = useParams<{ id: string }>();
   const customerId = Number(params?.id);
   const { data, loading, error } = useCustomerProfile(customerId);
+
+  const ghlContact = data?.ghl?.contact ?? null;
+  const ghlTags = ghlContact?.tags ?? [];
+  const missingFromDb: string[] = [];
+  if (data) {
+    const ghlName = [ghlContact?.firstName, ghlContact?.lastName].filter(Boolean).join(' ');
+    if (!data.customer.name && ghlName) {
+      missingFromDb.push(`Name (GHL: ${ghlName})`);
+    }
+    if (!data.customer.phone && ghlContact?.phone) {
+      missingFromDb.push(`Phone (GHL: ${formatPhone(ghlContact.phone)})`);
+    }
+    if (!data.customer.email && ghlContact?.email) {
+      missingFromDb.push(`Email (GHL: ${ghlContact.email})`);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -122,17 +140,28 @@ export default function CustomerProfilePage() {
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
                 <div className="text-sm text-slate-500">Customer</div>
-                <div className="mt-1 text-2xl font-semibold text-[#5b3ba4] dark:text-purple-100">
-                  {data.customer.name || 'Unknown'}
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
-                  <span>#{data.customer.id}</span>
-                  {data.customer.wooId && <span>Woo: {data.customer.wooId}</span>}
-                  {data.insights.repeatBuyer && (
-                    <Badge className="bg-[#f0e5ff] text-[#5b3ba4] dark:bg-purple-900/60 dark:text-purple-50">
-                      Repeat buyer
-                    </Badge>
-                  )}
+                {(() => {
+                  const displayName = data.customer.name || nameFromEmail(data.customer.email);
+                  return (
+                    <div className="mt-1 text-2xl font-semibold text-[#5b3ba4] dark:text-purple-100">
+                      {displayName}
+                    </div>
+                  );
+                })()}
+                <div className="mt-2 flex flex-wrap items-start gap-3 text-sm text-slate-600 dark:text-slate-300">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex flex-wrap gap-3">
+                      <span>#{data.customer.id}</span>
+                      {data.customer.wooId && <span>Woo: {data.customer.wooId}</span>}
+                      {data.insights.repeatBuyer && (
+                        <Badge className="bg-[#f0e5ff] text-[#5b3ba4] dark:bg-purple-900/60 dark:text-purple-50">
+                          Repeat buyer
+                        </Badge>
+                      )}
+                    </div>
+                    {ghlContact?.id && <span>GHL: {ghlContact.id}</span>}
+                  </div>
+                  
                 </div>
               </div>
               <div className="grid gap-2 text-sm text-slate-600 dark:text-slate-300">
@@ -142,6 +171,28 @@ export default function CustomerProfilePage() {
                 <div>Last active: {formatDate(data.customer.lastActiveAt)}</div>
               </div>
             </div>
+            {ghlTags.length > 0 && (
+              <div className="mt-4 space-y-3">
+                {ghlTags.length > 0 && (
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Tags
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {ghlTags.map((tag) => (
+                        <Badge
+                          key={tag}
+                          variant="outline"
+                          className="max-w-full break-words border-[#dcc7ff] bg-[#f6efff] text-xs text-[#5b3ba4] shadow-sm dark:border-purple-900/50 dark:bg-purple-900/40 dark:text-purple-100"
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </Card>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -165,63 +216,17 @@ export default function CustomerProfilePage() {
             <StatCard label="Last order" value={formatDate(data.insights.lastOrderAt)} />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
-              <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
-                Intent
-              </div>
-              <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
-                <div>Primary: {formatLabel(data.customer.intent?.primaryIntent ?? null)}</div>
-                <div>Mental state: {formatLabel(data.customer.intent?.mentalState ?? null)}</div>
-                <div>Improvement: {formatLabel(data.customer.intent?.improvementArea ?? null)}</div>
-                <div>Updated: {formatDate(data.customer.intent?.updatedAt ?? null)}</div>
-              </div>
-            </Card>
-            <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
-              <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
-                GHL contact
-              </div>
-              {data.ghl?.error && (
-                <div className="mt-2 text-sm text-red-600 dark:text-red-200">
-                  {data.ghl.error}
-                </div>
-              )}
-              {!data.ghl?.error && (
-                <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
-                  <div>ID: {data.ghl?.contact?.id ?? '—'}</div>
-                  <div>Email: {data.ghl?.contact?.email ?? '—'}</div>
-                  <div>Phone: {formatPhone(data.ghl?.contact?.phone ?? null)}</div>
-                  <div>Matched by: {data.ghl?.matchedBy ?? '—'}</div>
-                  {data.ghl?.contact?.tags?.length ? (
-                    <div className="flex flex-wrap gap-1">
-                      {data.ghl.contact.tags.map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant="outline"
-                          className="max-w-full break-words border-[#dcc7ff] bg-[#f6efff] text-xs text-[#5b3ba4] shadow-sm dark:border-purple-900/50 dark:bg-purple-900/40 dark:text-purple-100"
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <div>Tags: —</div>
-                  )}
-                  {data.ghl?.contact?.customFields?.length ? (
-                    <div className="rounded-lg border border-[#f0e5ff] bg-white/70 p-2 text-xs text-slate-500 dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-200">
-                      {data.ghl.contact.customFields.map((field) => (
-                        <div key={field.id} className="break-words">
-                          {field.id}: {formatFieldValue(field.value)}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div>Custom fields: —</div>
-                  )}
-                </div>
-              )}
-            </Card>
-          </div>
+          <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
+            <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
+              Intent
+            </div>
+            <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
+              <div>Primary: {formatLabel(data.customer.intent?.primaryIntent ?? null)}</div>
+              <div>Mental state: {formatLabel(data.customer.intent?.mentalState ?? null)}</div>
+              <div>Improvement: {formatLabel(data.customer.intent?.improvementArea ?? null)}</div>
+              <div>Updated: {formatDate(data.customer.intent?.updatedAt ?? null)}</div>
+            </div>
+          </Card>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
@@ -335,7 +340,7 @@ export default function CustomerProfilePage() {
                           <ul className="space-y-2">
                             {order.items.map((item, index) => (
                               <li
-                                key={`${order.id}-${item.productId ?? index}`}
+                                key={`${order.id}-${item.productId ?? 'item'}-${index}`}
                                 className="rounded-md border border-[#f0e5ff] bg-white/80 p-2 text-xs text-slate-700 dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100"
                               >
                                 <div className="flex flex-wrap items-center justify-between gap-2">
