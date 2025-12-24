@@ -194,15 +194,15 @@ async function mapCustomersToRows(params: {
   });
 }
 
-function applyFilters(params: {
-  rows: Array<{
-    segment?: string;
-    topCategory?: string | null;
-    lastItems?: Array<{ categories?: string[] }>;
-  }>;
+function applyFilters<T extends {
+  segment?: string;
+  topCategory?: string | null;
+  lastItems?: Array<{ categories?: string[] }>;
+}>(params: {
+  rows: T[];
   segmentFilter: string | null;
   categoryFilter: string | null;
-}) {
+}): T[] {
   const filteredBySegment = params.segmentFilter
     ? params.rows.filter((d) => d.segment === params.segmentFilter)
     : params.rows;
