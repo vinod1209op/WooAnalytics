@@ -1,0 +1,26 @@
+name: Quiz Sync
+
+on:
+  schedule:
+    - cron: "0 8 * * *" # daily at 08:00 UTC
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call quiz intent sync
+        env:
+          API_URL: ${{ secrets.API_URL }} # e.g. https://your-api-host.com
+          CRON_SECRET: ${{ secrets.CRON_SECRET }} # 4f8b9d4a-2d41-4e0a-9c2d-7f6e5c3a1b0f (store in secrets)
+        run: |
+          if [ -z "$API_URL" ]; then
+            echo "API_URL secret is not set"; exit 1;
+          fi
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET secret is not set"; exit 1;
+          fi
+          curl -X POST "$API_URL/cron/sync-ghl-quiz-tags" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "Content-Type: application/json" \
+            -d '{"storeId":"cmi42lm5y0000sq8n7w2t4rzn","locationId":"bF3HKbWR2CHUb1pETzNN","dryRun":false,"limit":200,"checkDrift":true}'

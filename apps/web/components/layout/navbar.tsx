@@ -17,6 +17,7 @@ export function Navbar() {
     { href: '/', label: 'Dashboard' },
     { href: '/analytics', label: 'Analytics' },
     { href: '/admin/idle', label: 'Customers' },
+    { href: '/ghl', label: 'GHL' },
   ];
 
   return (

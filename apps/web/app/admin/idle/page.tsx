@@ -46,6 +46,8 @@ export default function IdleCustomersPage() {
   const [intent, setIntent] = useState<string | null>(null);
   const [category, setCategory] = useState<string | null>(null);
   const [improvement, setImprovement] = useState<string | null>(null);
+  const [jumpInput, setJumpInput] = useState('');
+  const [jumpOpen, setJumpOpen] = useState<'left' | 'right' | null>(null);
 
   const { data, loading, error } = useInactiveCustomers({
     days,
@@ -121,7 +123,42 @@ export default function IdleCustomersPage() {
   };
 
   const resetCursor = () => setCursor(0);
-  const canPageForward = !!data?.nextCursor;
+  const currentPage = Math.floor(cursor / limit) + 1;
+  const totalCount = data?.totalCount ?? 0;
+  const totalPages = Math.max(1, Math.ceil(Math.max(totalCount, data?.count ?? 0) / limit));
+  const pagination = useMemo(() => {
+    const pages = new Set<number>();
+    pages.add(1);
+
+    if (totalPages > 1) {
+      pages.add(totalPages);
+    }
+
+    for (let p = currentPage - 1; p <= currentPage + 1; p += 1) {
+      if (p > 1 && p < totalPages) pages.add(p);
+    }
+
+    const sorted = Array.from(pages)
+      .filter((p) => p >= 1)
+      .sort((a, b) => a - b);
+    const middle = sorted.filter((p) => p !== 1 && p !== totalPages);
+    const leftEllipsis = middle.length > 0 && middle[0] > 2;
+    const rightEllipsis =
+      middle.length > 0 && middle[middle.length - 1] < totalPages - 1;
+
+    return { middle, leftEllipsis, rightEllipsis };
+  }, [currentPage, totalPages]);
+  const gotoPage = (page: number) => {
+    const clamped = Math.min(Math.max(page, 1), totalPages);
+    setCursor((clamped - 1) * limit);
+    setJumpOpen(null);
+    setJumpInput('');
+  };
+  const handleJumpSubmit = (value: string) => {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isNaN(parsed)) return;
+    gotoPage(parsed);
+  };
   const segmentOptions =
     data?.segmentCounts && Object.keys(data.segmentCounts).length
       ? Object.keys(data.segmentCounts)
@@ -178,27 +215,122 @@ export default function IdleCustomersPage() {
 
         <div className="mt-4 flex items-center justify-between text-sm text-slate-600 dark:text-slate-300">
           <div>
-            Showing page starting at cursor {cursor}. {data?.count ?? 0} rows fetched.
+            Page {currentPage} of {totalPages}. {data?.count ?? 0} rows fetched.
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-1">
             <Button
-              variant="outline"
-              className="rounded-xl border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
-              disabled={cursor === 0 || loading}
-              onClick={() => setCursor(Math.max(cursor - limit, 0))}
+              variant={currentPage === 1 ? "default" : "outline"}
+              className="h-9 w-9 rounded-xl border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
+              onClick={() => gotoPage(1)}
+              disabled={loading}
             >
-              Previous
+              1
             </Button>
-            <Button
-              variant="outline"
-              className="rounded-xl border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
-              disabled={!canPageForward || loading}
-              onClick={() => {
-                if (data?.nextCursor != null) setCursor(data.nextCursor);
-              }}
-            >
-              Next
-            </Button>
+            {pagination.leftEllipsis && (
+              <>
+                {jumpOpen === 'left' ? (
+                  <input
+                    aria-label="Jump to page"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={jumpInput}
+                    onChange={(event) =>
+                      setJumpInput(event.target.value.replace(/[^0-9]/g, ''))
+                    }
+                    onFocus={(event) => event.currentTarget.select()}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        handleJumpSubmit(jumpInput);
+                      }
+                      if (event.key === 'Escape') {
+                        setJumpOpen(null);
+                      }
+                    }}
+                    onBlur={() => setJumpOpen(null)}
+                    disabled={loading}
+                    autoFocus
+                    placeholder="#"
+                    className="h-9 w-14 rounded-xl border border-[#d9c7f5] bg-white/80 text-center text-sm text-[#5b3ba4] shadow-sm outline-none focus:ring-2 focus:ring-purple-300 disabled:opacity-70 dark:border-purple-900/50 dark:bg-purple-950/40 dark:text-purple-100"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setJumpInput(String(currentPage));
+                      setJumpOpen('left');
+                    }}
+                    disabled={loading}
+                    className="px-2 text-slate-400 transition hover:text-slate-600 disabled:opacity-70 dark:text-slate-500 dark:hover:text-slate-300"
+                  >
+                    …
+                  </button>
+                )}
+              </>
+            )}
+            {pagination.middle.map((page) => (
+              <Button
+                key={page}
+                variant={currentPage === page ? "default" : "outline"}
+                className="h-9 w-9 rounded-xl border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
+                onClick={() => gotoPage(page)}
+                disabled={loading}
+              >
+                {page}
+              </Button>
+            ))}
+            {pagination.rightEllipsis && (
+              <>
+                {jumpOpen === 'right' ? (
+                  <input
+                    aria-label="Jump to page"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={jumpInput}
+                    onChange={(event) =>
+                      setJumpInput(event.target.value.replace(/[^0-9]/g, ''))
+                    }
+                    onFocus={(event) => event.currentTarget.select()}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        handleJumpSubmit(jumpInput);
+                      }
+                      if (event.key === 'Escape') {
+                        setJumpOpen(null);
+                      }
+                    }}
+                    onBlur={() => setJumpOpen(null)}
+                    disabled={loading}
+                    autoFocus
+                    placeholder="#"
+                    className="h-9 w-14 rounded-xl border border-[#d9c7f5] bg-white/80 text-center text-sm text-[#5b3ba4] shadow-sm outline-none focus:ring-2 focus:ring-purple-300 disabled:opacity-70 dark:border-purple-900/50 dark:bg-purple-950/40 dark:text-purple-100"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setJumpInput(String(currentPage));
+                      setJumpOpen('right');
+                    }}
+                    disabled={loading}
+                    className="px-2 text-slate-400 transition hover:text-slate-600 disabled:opacity-70 dark:text-slate-500 dark:hover:text-slate-300"
+                  >
+                    …
+                  </button>
+                )}
+              </>
+            )}
+            {totalPages > 1 && (
+              <Button
+                variant={currentPage === totalPages ? "default" : "outline"}
+                className="h-9 w-9 rounded-xl border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
+                onClick={() => gotoPage(totalPages)}
+                disabled={loading}
+              >
+                {totalPages}
+              </Button>
+            )}
           </div>
         </div>
       </Card>

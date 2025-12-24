@@ -15,7 +15,7 @@ export const QUIZ_FIELD_IDS = {
   bipolarFamilyHistory: "22Fq73xN52h4M7nkE2R2",
 } as const;
 
-// Long-form result copy fields (not for segmentation; for personalization only)
+// Long-form result copy fields
 export const RESULT_FIELD_IDS = {
   resultA2: "uMQiFfz1dWBDyYm4z7qh",
   resultB1: "A6OjiZfK7115X789VlVf",

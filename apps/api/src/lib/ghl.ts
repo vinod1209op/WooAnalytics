@@ -153,10 +153,12 @@ export async function searchContacts(params: {
 
   const json = await handleGhlResponse(res, "GHL search contacts");
   if (Array.isArray(json?.contacts)) {
+    // Filter out contacts without ids to avoid downstream fetch failures.
+    const validContacts = (json.contacts as GhlContact[]).filter((c) => c && (c as any).id);
     return {
-      contacts: json.contacts as GhlContact[],
+      contacts: validContacts,
       total: json.total,
-      nextPage: json.contacts.length ? (body.page ?? 1) + 1 : null,
+      nextPage: validContacts.length ? (body.page ?? 1) + 1 : null,
     } as SearchContactsResult;
   }
   return { contacts: [], total: 0 };

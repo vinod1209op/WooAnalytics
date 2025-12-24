@@ -4,6 +4,7 @@ import {
   upsertContactWithTags,
   listCustomFields,
   searchContacts,
+  fetchContact,
   type SearchContactsResult,
 } from "../../lib/ghl";
 import { normalizeFromCustomFields } from "../../lib/intent-normalizer";
@@ -154,8 +155,27 @@ export function registerQuizSyncRoute(router: Router, deps: SyncDeps) {
       for (const contact of contacts) {
         if (processed >= limit) break;
         processed += 1;
+        if (!contact?.id) {
+          skipped += 1;
+          errors.push({ contactId: undefined, email: contact.email, reason: "no_contact_id" });
+          continue;
+        }
         processedIds.push({ contactId: contact.id, email: contact.email });
-        const normalized = normalizeFromCustomFields(contact.customFields || [], {
+
+        // Hydrate full contact to get customFields (search often omits them)
+        let fullContact = contact;
+        if (!Array.isArray(contact.customFields) || contact.customFields.length === 0) {
+          try {
+            fullContact = await fetchContact(contact.id);
+          } catch (err: any) {
+            const msg = err?.message || String(err);
+            errors.push({ contactId: contact.id, email: contact.email, reason: msg });
+            skipped += 1;
+            continue;
+          }
+        }
+
+        const normalized = normalizeFromCustomFields(fullContact.customFields || [], {
           fieldDefs: fieldDefsMap,
         });
         const hasIntent =
@@ -167,7 +187,7 @@ export function registerQuizSyncRoute(router: Router, deps: SyncDeps) {
         matched += 1;
 
         const coreTags = [...normalized.intentTags, ...normalized.safetyTags];
-        const mergedTags = Array.from(new Set([...(contact.tags || []), ...coreTags]));
+        const mergedTags = Array.from(new Set([...(fullContact.tags || []), ...coreTags]));
         const customFieldsPayload: Array<{ id: string; value: any }> = [];
         if (primaryIntentField && normalized.primaryIntent) {
           customFieldsPayload.push({ id: primaryIntentField, value: normalized.primaryIntent });
@@ -175,8 +195,8 @@ export function registerQuizSyncRoute(router: Router, deps: SyncDeps) {
 
         if (isDryRun) {
           preview.push({
-            contactId: contact.id,
-            email: contact.email,
+            contactId: fullContact.id,
+            email: fullContact.email,
             intent: normalized,
             tags: mergedTags,
             customFields: customFieldsPayload,
@@ -185,25 +205,25 @@ export function registerQuizSyncRoute(router: Router, deps: SyncDeps) {
           try {
             await upsertContactWithTags({
               locationId,
-              email: contact.email,
-              phone: contact.phone,
-              firstName: contact.firstName,
-              lastName: contact.lastName,
+              email: fullContact.email,
+              phone: fullContact.phone,
+              firstName: fullContact.firstName,
+              lastName: fullContact.lastName,
               tags: mergedTags,
             customFields: customFieldsPayload.length ? customFieldsPayload : undefined,
-            contactId: contact.id,
+            contactId: fullContact.id,
           });
             tagged += 1;
           } catch (err: any) {
             const msg = err?.message || String(err);
-            errors.push({ contactId: contact.id, email: contact.email, reason: msg });
+            errors.push({ contactId: fullContact.id, email: fullContact.email, reason: msg });
             if (msg.includes("429")) {
               await deps.sleep(1500);
             }
           }
         }
 
-        const email = contact.email?.trim() || null;
+        const email = fullContact.email?.trim() || null;
         if (!email) {
           missingEmail += 1;
           continue;

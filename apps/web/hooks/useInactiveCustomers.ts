@@ -13,6 +13,7 @@ export type IdleCustomer = {
   firstOrderAt: string | null;
   lastActiveAt: string | null;
   lastOrderAt: string | null;
+  lastOrderId?: number | null;
   lastOrderTotal: number | null;
   lastOrderDiscount: number | null;
   lastOrderShipping: number | null;
@@ -46,6 +47,23 @@ export type IdleCustomer = {
     lineTotal: number;
     categories?: string[];
   }[];
+  orderHistory?: {
+    orderId: number;
+    createdAt: string | null;
+    total: number | null;
+    discountTotal: number | null;
+    shippingTotal: number | null;
+    taxTotal: number | null;
+    coupons: string[];
+    items: {
+      productId: number | null;
+      name: string | null;
+      sku: string | null;
+      quantity: number;
+      lineTotal: number;
+      categories?: string[];
+    }[];
+  }[];
   topCategory: string | null;
 };
 
@@ -54,6 +72,7 @@ type InactiveResponse = {
   days: number;
   cutoff: string;
   count: number;
+  totalCount?: number;
   nextCursor: number | null;
   segmentCounts?: Record<string, number>;
   data: IdleCustomer[];

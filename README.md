@@ -139,7 +139,6 @@ prisma/     Shared Prisma schema
   - `/customers/:id/winback` returns segment, last order + items/categories, offer ladder, message templates, intent placeholder.
   - `/customers/rfm-idle` combines RFM tier + idle segment; `/cron/idle-snapshot` and `/cron/idle-health` for ops snapshots/alerts.
   - `/cron/idle-sync-ghl` (POST) to upsert idle contacts + tags into GHL; expects `storeId`, optional `days/segment`, uses `GHL_PIT` + `GHL_LOCATION_ID`.
-  - `/cron/normalize-intent` (POST) to pull GHL quiz/custom-field answers, map to intent enums/tags plus messaging/safety tags, push tags/custom field back to GHL, and store normalized quiz meta on customers; supports `dryRun`/`limit`, optional `GHL_PRIMARY_INTENT_FIELD_ID`, debug helper `/cron/debug/ghl/contact/:id`.
 - Web dashboard:
   - `/admin/idle` page with filters (days 30/60/90, segment, category, intent), segment cards (counts, avg days since, avg LTV, per-segment export), churn-risk sorting, CSV export, copy emails, tags column in CSV.
   - Idle table shows offers/messages, segments, LTV, last order items/categories/coupons.

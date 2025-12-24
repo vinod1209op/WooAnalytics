@@ -45,6 +45,8 @@ export function IdleFilters({
   setDays,
   intent,
   setIntent,
+  improvement,
+  setImprovement,
   segment,
   setSegment,
   category,
