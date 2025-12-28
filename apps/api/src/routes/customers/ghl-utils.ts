@@ -87,6 +87,12 @@ function findFieldValue(fields: GhlMappedField[], tokenSets: string[][]) {
 
 function toNumber(value: any): number | null {
   if (value == null || value === '') return null;
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/[^0-9.-]/g, '');
+    if (!cleaned) return null;
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
   const num = Number(value);
   return Number.isFinite(num) ? num : null;
 }
@@ -110,6 +116,9 @@ export function extractCommerceFields(fields: GhlMappedField[]): GhlCommerceFiel
       ['total', 'orders', 'count'],
       ['orders', 'count'],
       ['total', 'orders'],
+      ['total', 'order', 'count'],
+      ['orders', 'total'],
+      ['order', 'count'],
     ])
   );
   const totalSpend = toNumber(
@@ -117,37 +126,55 @@ export function extractCommerceFields(fields: GhlMappedField[]): GhlCommerceFiel
       ['total', 'spend'],
       ['total', 'spent'],
       ['lifetime', 'value'],
+      ['lifetime', 'spend'],
+      ['total', 'revenue'],
+      ['customer', 'lifetime', 'value'],
+      ['ltv'],
     ])
   );
   const lastOrderDate = toIso(
     findFieldValue(fields, [
       ['last', 'order', 'date'],
       ['last', 'order'],
+      ['latest', 'order', 'date'],
+      ['most', 'recent', 'order'],
     ])
   );
   const lastOrderValue = toNumber(
     findFieldValue(fields, [
       ['last', 'order', 'value'],
       ['last', 'order', 'total'],
+      ['last', 'order', 'amount'],
+      ['last', 'order', 'spend'],
     ])
   );
   const firstOrderDate = toIso(
     findFieldValue(fields, [
       ['first', 'order', 'date'],
       ['first', 'order'],
+      ['earliest', 'order', 'date'],
     ])
   );
   const firstOrderValue = toNumber(
     findFieldValue(fields, [
       ['first', 'order', 'value'],
       ['first', 'order', 'total'],
+      ['first', 'order', 'amount'],
     ])
   );
   const orderSubscription = String(
-    findFieldValue(fields, [['order', 'subscription']]) ?? ''
+    findFieldValue(fields, [
+      ['order', 'subscription'],
+      ['subscription', 'status'],
+      ['order', 'subscription', 'status'],
+    ]) ?? ''
   ).trim();
   const productsOrdered = toStringArray(
-    findFieldValue(fields, [['products', 'ordered']])
+    findFieldValue(fields, [
+      ['products', 'ordered'],
+      ['products', 'ordered', 'customer'],
+      ['product', 'ordered'],
+    ])
   ).filter(Boolean);
 
   return {

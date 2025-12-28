@@ -1,204 +1,19 @@
 import { prisma } from "../db";
 import type { SyncContext, SyncStats } from "./types";
-
-const GHL_BASE =
-  process.env.GHL_API_BASE?.replace(/\/$/, "") ||
-  "https://services.leadconnectorhq.com";
+import type { GhlContact } from "./loyalty/types";
+import {
+  listCustomFields,
+  searchContactsByQuery,
+  updateContactCustomFields,
+} from "./loyalty/ghl-client";
+import {
+  buildLoyaltyStats,
+  extractWooId,
+  findFieldId,
+} from "./loyalty/loyalty-utils";
 
 const CUSTOMER_TAG = "customer";
 const REWARD_THRESHOLDS = [150, 300, 450, 700];
-
-type GhlFieldDef = {
-  id: string;
-  name?: string;
-  fieldKey?: string;
-};
-
-type GhlContact = {
-  id: string;
-  email?: string | null;
-  customFields?: Array<{ id: string; value: any }>;
-};
-
-type LoyaltyStats = {
-  pointsBalance: number | null;
-  pointsLifetime: number | null;
-  pointsToNext: number | null;
-  nextRewardAt: number | null;
-  lastRewardAt: number | null;
-  tier: string | null;
-};
-
-function defaultHeaders() {
-  return {
-    Authorization: `Bearer ${process.env.GHL_PIT}`,
-    "Content-Type": "application/json",
-    Accept: "application/json",
-    Version: "2021-07-28",
-  };
-}
-
-function sleep(ms: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, ms));
-}
-
-async function fetchWithRetry(
-  url: string,
-  init: RequestInit,
-  options: { retries?: number; baseDelayMs?: number } = {}
-) {
-  const retries = options.retries ?? 3;
-  let delayMs = options.baseDelayMs ?? 400;
-  for (let attempt = 0; attempt <= retries; attempt += 1) {
-    const res = await fetch(url, init);
-    if (res.status !== 429 || attempt === retries) return res;
-    const retryAfter = res.headers.get("retry-after");
-    let waitMs = retryAfter ? Number.parseInt(retryAfter, 10) * 1000 : delayMs;
-    if (!Number.isFinite(waitMs) || waitMs <= 0) waitMs = delayMs;
-    await sleep(waitMs);
-    delayMs *= 2;
-  }
-  return fetch(url, init);
-}
-
-async function handleGhlResponse(res: Response, action: string) {
-  if (res.status === 429) {
-    throw new Error("GHL rate limited (429)");
-  }
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`${action} failed ${res.status}: ${text}`);
-  }
-  return res.json();
-}
-
-async function listCustomFields(locationId: string): Promise<GhlFieldDef[]> {
-  const res = await fetchWithRetry(`${GHL_BASE}/locations/${locationId}/customFields`, {
-    method: "GET",
-    headers: defaultHeaders(),
-  });
-  const json = (await handleGhlResponse(res, "GHL list custom fields")) as any;
-  const items = Array.isArray(json?.customFields) ? json.customFields : [];
-  return items
-    .map((item: any) => {
-      if (!item?.id) return null;
-      return {
-        id: String(item.id),
-        name: item.name,
-        fieldKey: item.fieldKey || item.key,
-      } as GhlFieldDef;
-    })
-    .filter(Boolean) as GhlFieldDef[];
-}
-
-async function searchContactsByQuery(params: {
-  locationId: string;
-  query: string;
-  page?: number;
-  pageLimit?: number;
-}) {
-  const body: any = {
-    locationId: params.locationId,
-    page: params.page ?? 1,
-    pageLimit: Math.min(Math.max(params.pageLimit || 50, 1), 200),
-    query: params.query || "",
-  };
-
-  const res = await fetchWithRetry(`${GHL_BASE}/contacts/search`, {
-    method: "POST",
-    headers: defaultHeaders(),
-    body: JSON.stringify(body),
-  });
-
-  const json = (await handleGhlResponse(res, "GHL search contacts")) as any;
-  const contacts = Array.isArray(json?.contacts) ? (json.contacts as GhlContact[]) : [];
-  return {
-    contacts: contacts.filter((c) => c && (c as any).id),
-    total: json?.total ?? contacts.length,
-    nextPage: contacts.length ? (body.page ?? 1) + 1 : null,
-  };
-}
-
-async function updateContactCustomFields(contactId: string, customFields: Array<{ id: string; value: any }>) {
-  const res = await fetchWithRetry(`${GHL_BASE}/contacts/${contactId}`, {
-    method: "PUT",
-    headers: defaultHeaders(),
-    body: JSON.stringify({ customFields }),
-  });
-  return handleGhlResponse(res, "GHL update contact");
-}
-
-function normalizeText(value?: string | null) {
-  return (value || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function matchesTokens(text: string, tokens: string[]) {
-  return tokens.every((token) => text.includes(token));
-}
-
-function findFieldId(defs: GhlFieldDef[], tokenSets: string[][]) {
-  for (const tokens of tokenSets) {
-    const match = defs.find((def) => {
-      const text = `${normalizeText(def.name)} ${normalizeText(def.fieldKey)}`;
-      return matchesTokens(text, tokens);
-    });
-    if (match) return match.id;
-  }
-  return null;
-}
-
-function extractWooId(customFields: Array<{ id: string; value: any }>, defs: GhlFieldDef[]) {
-  const wooIdFieldId = findFieldId(defs, [
-    ["woo", "customer", "id"],
-    ["woocommerce", "customer", "id"],
-    ["woo", "id"],
-    ["woocommerce", "id"],
-  ]);
-  if (!wooIdFieldId) return null;
-  const value = customFields.find((field) => String(field.id) === wooIdFieldId)?.value;
-  if (value == null || value === "") return null;
-  const asString = String(value).trim();
-  return asString ? asString : null;
-}
-
-function buildLoyaltyStats(totalSpend: number | null | undefined): LoyaltyStats {
-  if (totalSpend == null || Number.isNaN(totalSpend)) {
-    return {
-      pointsBalance: null,
-      pointsLifetime: null,
-      pointsToNext: null,
-      nextRewardAt: null,
-      lastRewardAt: null,
-      tier: null,
-    };
-  }
-
-  const points = Math.floor(totalSpend);
-  let lastRewardAt: number | null = null;
-  let nextRewardAt: number | null = null;
-
-  for (const threshold of REWARD_THRESHOLDS) {
-    if (points >= threshold) {
-      lastRewardAt = threshold;
-    } else {
-      nextRewardAt = threshold;
-      break;
-    }
-  }
-
-  return {
-    pointsBalance: points,
-    pointsLifetime: points,
-    pointsToNext: nextRewardAt != null ? Math.max(nextRewardAt - points, 0) : null,
-    nextRewardAt,
-    lastRewardAt,
-    tier: lastRewardAt ? `reward_unlocked_${lastRewardAt}` : null,
-  };
-}
 
 export async function syncLoyalty(ctx: SyncContext): Promise<SyncStats> {
   const warnings: string[] = [];
@@ -305,7 +120,7 @@ export async function syncLoyalty(ctx: SyncContext): Promise<SyncStats> {
     const customer = customerById.get(aggregate.customerId);
     if (!customer) continue;
     const totalSpend = aggregate._sum.total ?? 0;
-    const loyalty = buildLoyaltyStats(totalSpend);
+    const loyalty = buildLoyaltyStats(totalSpend, REWARD_THRESHOLDS);
 
     const contact =
       (customer.wooId ? contactByWooId.get(customer.wooId) : null) ||

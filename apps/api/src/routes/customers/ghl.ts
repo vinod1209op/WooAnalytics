@@ -1,26 +1,15 @@
 import { Router, Request, Response } from "express";
 import { listCustomFields, searchContactsByQuery } from "../../lib/ghl";
-import { normalizeFromCustomFields } from "../../lib/intent-normalizer";
-import {
-  asLower,
-  fullName,
-  parsePositiveInt,
-  pickEarliestDate,
-  pickLatestDate,
-  preferHigherNumber,
-} from "./utils";
-import { round2 } from "../analytics/utils";
-import { buildLoyaltyStats } from "../../lib/loyalty";
-import {
-  buildFieldDefMap,
-  extractCommerceFields,
-  formatGhlAddress,
-  mapCustomFields,
-  normalizeFieldDefs,
-} from "./ghl-utils";
-import { extractCategories } from "./ghl-product-utils";
+import { asLower, parsePositiveInt } from "./utils";
+import { buildFieldDefMap, normalizeFieldDefs } from "./ghl-utils";
 import { buildDbAggregates, buildDbFallback } from "./ghl-db";
-
+import {
+  applyGhlCustomerFilters,
+  buildGhlCustomerRow,
+  buildGhlCustomersCsv,
+  collectGhlCustomerCategories,
+  type GhlCustomerRow,
+} from "./ghl-list-helpers";
 
 export function registerGhlCustomersRoute(router: Router) {
   router.get("/ghl", async (req: Request, res: Response) => {
@@ -123,83 +112,17 @@ export function registerGhlCustomersRoute(router: Router) {
         customerIds: Array.from(new Set(Array.from(fallbackMap.values()).map((row) => row.id))),
       });
 
-      const rows = hydrated.map((contact) => {
+      const rows: GhlCustomerRow[] = hydrated.map((contact) => {
         const email = contact.email ?? null;
         const fallback = email ? fallbackMap.get(email.toLowerCase()) : null;
         const dbAgg = fallback ? dbAggMap.get(fallback.id) : null;
-        const firstName = contact.firstName ?? fallback?.firstName ?? null;
-        const lastName = contact.lastName ?? fallback?.lastName ?? null;
-        const name = fullName(firstName, lastName) || null;
-        const phone = contact.phone ?? fallback?.phone ?? null;
-        const mappedFields = mapCustomFields(contact.customFields || [], defMap);
-        const commerce = extractCommerceFields(mappedFields);
-        const normalized = normalizeFromCustomFields(contact.customFields || [], {
-          fieldDefs: defRecord,
+        return buildGhlCustomerRow({
+          contact,
+          fallback: fallback ?? null,
+          dbAgg: dbAgg ?? null,
+          defMap,
+          defRecord,
         });
-        const dbOrdersCount = dbAgg?.ordersCount ?? null;
-        const dbTotalSpend = dbAgg ? round2(dbAgg.totalSpend ?? 0) : null;
-        const mergedOrdersCount = preferHigherNumber(
-          commerce.totalOrdersCount,
-          dbOrdersCount
-        );
-        const mergedTotalSpend = preferHigherNumber(commerce.totalSpend, dbTotalSpend);
-        const mergedFirstOrderDate = pickEarliestDate(
-          commerce.firstOrderDate,
-          dbAgg?.firstOrderAt
-        );
-        const mergedLastOrderDate = pickLatestDate(
-          commerce.lastOrderDate,
-          dbAgg?.lastOrderAt
-        );
-        const mergedDateAdded = pickEarliestDate(contact.dateAdded ?? null, fallback?.createdAt);
-        const mergedDateUpdated = pickLatestDate(
-          contact.dateUpdated ?? null,
-          fallback?.lastActiveAt,
-          commerce.lastOrderDate,
-          dbAgg?.lastOrderAt
-        );
-
-        return {
-          contactId: contact.id,
-          email,
-          name,
-          firstName,
-          lastName,
-          phone,
-          address: formatGhlAddress(contact),
-          dateAdded: mergedDateAdded,
-          dateUpdated: mergedDateUpdated,
-          tags: contact.tags || [],
-          db: fallback
-            ? {
-                customerId: fallback.id,
-                wooId: fallback.wooId ?? null,
-                createdAt: fallback.createdAt?.toISOString() ?? null,
-                lastActiveAt: fallback.lastActiveAt?.toISOString() ?? null,
-                ordersCount: dbAgg?.ordersCount ?? null,
-                totalSpend: dbAgg ? round2(dbAgg.totalSpend ?? 0) : null,
-                firstOrderAt: dbAgg?.firstOrderAt?.toISOString() ?? null,
-                lastOrderAt: dbAgg?.lastOrderAt?.toISOString() ?? null,
-              }
-            : null,
-          metrics: {
-            totalOrdersCount: mergedOrdersCount,
-            totalSpend: mergedTotalSpend != null ? round2(mergedTotalSpend) : null,
-            lastOrderDate: mergedLastOrderDate,
-            lastOrderValue: commerce.lastOrderValue,
-            firstOrderDate: mergedFirstOrderDate,
-            firstOrderValue: commerce.firstOrderValue,
-            orderSubscription: commerce.orderSubscription,
-          },
-          loyalty: buildLoyaltyStats(mergedTotalSpend),
-          productsOrdered: commerce.productsOrdered,
-          intent: {
-            primaryIntent: normalized.primaryIntent ?? null,
-            mentalState: normalized.mentalState ?? null,
-            improvementArea: normalized.improvementArea ?? null,
-          },
-          productCategories: extractCategories(commerce.productsOrdered ?? []),
-        };
       });
       const hasFilters =
         minOrders != null ||
@@ -209,45 +132,16 @@ export function registerGhlCustomersRoute(router: Router) {
         intentFilter != null ||
         improvementFilter != null ||
         categoryFilter != null;
-      const nowMs = Date.now();
-      const joinedCutoff =
-        joinedAfterDays != null ? nowMs - joinedAfterDays * 24 * 60 * 60 * 1000 : null;
-      const activeCutoff =
-        activeAfterDays != null ? nowMs - activeAfterDays * 24 * 60 * 60 * 1000 : null;
-      const filteredRows = rows.filter((row) => {
-        if (minOrders != null) {
-          const orders = row.metrics?.totalOrdersCount ?? 0;
-          if (orders < minOrders) return false;
-        }
-        if (minSpend != null) {
-          const spend = row.metrics?.totalSpend ?? 0;
-          if (spend < minSpend) return false;
-        }
-        if (intentFilter) {
-          if ((row.intent?.primaryIntent ?? null) !== intentFilter) return false;
-        }
-        if (improvementFilter) {
-          if ((row.intent?.improvementArea ?? null) !== improvementFilter) return false;
-        }
-        if (categoryFilter) {
-          const categories = row.productCategories ?? [];
-          if (!categories.some((cat) => cat.toLowerCase() === categoryFilter)) return false;
-        }
-        if (joinedCutoff != null) {
-          if (!row.dateAdded) return false;
-          const joinedAt = new Date(row.dateAdded).getTime();
-          if (Number.isNaN(joinedAt) || joinedAt < joinedCutoff) return false;
-        }
-        if (activeCutoff != null) {
-          if (!row.dateUpdated) return false;
-          const activeAt = new Date(row.dateUpdated).getTime();
-          if (Number.isNaN(activeAt) || activeAt < activeCutoff) return false;
-        }
-        return true;
+      const filteredRows = applyGhlCustomerFilters(rows, {
+        minOrders,
+        minSpend,
+        joinedAfterDays,
+        activeAfterDays,
+        intentFilter,
+        improvementFilter,
+        categoryFilter,
       });
-      const categories = Array.from(
-        new Set(filteredRows.flatMap((row) => row.productCategories ?? []))
-      ).sort((a, b) => a.localeCompare(b));
+      const categories = collectGhlCustomerCategories(filteredRows);
 
       const wantCsv =
         typeof req.query.format === "string" &&
@@ -260,62 +154,7 @@ export function registerGhlCustomersRoute(router: Router) {
           `attachment; filename="ghl-customers-${tagLower || "all"}-${page}.csv"`
         );
 
-        const header = [
-          "contactId",
-          "email",
-          "name",
-          "phone",
-          "dateAdded",
-          "dateUpdated",
-          "totalOrdersCount",
-          "totalSpend",
-          "lastOrderDate",
-          "lastOrderValue",
-          "firstOrderDate",
-          "firstOrderValue",
-          "orderSubscription",
-          "pointsBalance",
-          "pointsToNext",
-          "nextRewardAt",
-          "productsOrdered",
-          "tags",
-        ];
-
-        const escapeCsv = (val: any) => {
-          if (val === null || val === undefined) return "";
-          const str = String(val);
-          if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-            return `"${str.replace(/"/g, '""')}"`;
-          }
-          return str;
-        };
-
-        const rowsCsv = filteredRows.map((row) => {
-          return [
-            row.contactId,
-            row.email ?? "",
-            row.name ?? "",
-            row.phone ?? "",
-            row.dateAdded ?? "",
-            row.dateUpdated ?? "",
-            row.metrics?.totalOrdersCount ?? "",
-            row.metrics?.totalSpend ?? "",
-            row.metrics?.lastOrderDate ?? "",
-            row.metrics?.lastOrderValue ?? "",
-            row.metrics?.firstOrderDate ?? "",
-            row.metrics?.firstOrderValue ?? "",
-            row.metrics?.orderSubscription ?? "",
-            row.loyalty?.pointsBalance ?? "",
-            row.loyalty?.pointsToNext ?? "",
-            row.loyalty?.nextRewardAt ?? "",
-            (row.productsOrdered || []).join(" | "),
-            (row.tags || []).join(" | "),
-          ]
-            .map(escapeCsv)
-            .join(",");
-        });
-
-        res.send([header.join(","), ...rowsCsv].join("\n"));
+        res.send(buildGhlCustomersCsv(filteredRows));
         return;
       }
 

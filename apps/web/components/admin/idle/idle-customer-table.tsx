@@ -52,7 +52,9 @@ export function IdleCustomerTable({
             num(b.metrics?.daysSinceLastOrder);
           break;
         case 'spend':
-          cmp = num(a.metrics?.lastOrderValue) - num(b.metrics?.lastOrderValue);
+          cmp =
+            num(a.metrics?.totalSpend ?? a.metrics?.lastOrderValue) -
+            num(b.metrics?.totalSpend ?? b.metrics?.lastOrderValue);
           break;
         case 'risk':
           cmp = num(a.churnRisk) - num(b.churnRisk);
@@ -229,7 +231,9 @@ export function IdleCustomerTable({
                     : '—'}
                 </TableCell>
                 <TableCell className="text-sm text-slate-700 dark:text-slate-200">
-                  {formatMoney(row.metrics?.lastOrderValue ?? null)}
+                  {formatMoney(
+                    row.metrics?.totalSpend ?? row.metrics?.lastOrderValue ?? null
+                  )}
                 </TableCell>
                 <TableCell className="text-sm text-slate-700 dark:text-slate-200">
                   <Badge className={`w-fit text-[11px] ${riskTone}`}>
