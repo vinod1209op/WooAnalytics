@@ -74,6 +74,10 @@ export default function CustomerProfilePage() {
   const topCategories = data?.topCategories ?? dbTopCategories;
   const loyalty = data?.loyalty ?? null;
   const leadCoupons = data?.leadCoupons ?? [];
+  const leadCouponsToUnlock = leadCoupons
+    .filter((coupon) => coupon.remainingSpend != null && !coupon.eligible)
+    .sort((a, b) => (a.remainingSpend ?? 0) - (b.remainingSpend ?? 0));
+  const leadCouponsPreview = leadCouponsToUnlock.slice(0, 6);
   const pointsBalance = loyalty?.pointsBalance ?? null;
   const pointsToNext = loyalty?.pointsToNext ?? null;
   const nextRewardAt = loyalty?.nextRewardAt ?? null;
@@ -375,13 +379,13 @@ export default function CustomerProfilePage() {
             )}
           </Card>
 
-          {leadCoupons.length > 0 && (
+          {leadCouponsToUnlock.length > 0 && (
             <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
               <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
-                Lead coupons
+                Lead coupons to unlock
               </div>
               <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
-                {leadCoupons.map((coupon) => (
+                {leadCouponsPreview.map((coupon) => (
                   <div
                     key={coupon.code}
                     className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[#f0e5ff] bg-white/80 p-2 text-xs text-slate-700 dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100"
@@ -395,20 +399,16 @@ export default function CustomerProfilePage() {
                       </span>
                     </div>
                     <div className="text-right text-[11px] text-slate-500">
-                      {coupon.remainingSpend == null ? (
-                        <span>Minimum spend not set</span>
-                      ) : coupon.eligible ? (
-                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-900/40 dark:text-emerald-100">
-                          Eligible
-                        </span>
-                      ) : (
-                        <span>
-                          {formatMoney(coupon.remainingSpend)} to qualify
-                        </span>
-                      )}
+                      <span>{formatPoints(Math.ceil(coupon.remainingSpend ?? 0))} to qualify</span>
                     </div>
                   </div>
                 ))}
+                {leadCouponsToUnlock.length > leadCouponsPreview.length && (
+                  <div className="text-[11px] text-slate-500">
+                    {leadCouponsToUnlock.length - leadCouponsPreview.length} more lead coupons
+                    not shown.
+                  </div>
+                )}
               </div>
             </Card>
           )}

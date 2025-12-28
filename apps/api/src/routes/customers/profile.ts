@@ -103,6 +103,7 @@ export function registerCustomerProfileRoute(router: Router) {
         commerce.lastOrderDate,
         dbProfile?.stats?.lastOrderAt ?? null
       );
+      const dbLastOrderValue = dbProfile?.orders?.[0]?.total ?? null;
       const intentPrimary = normalized.primaryIntent ?? fallback?.primaryIntent ?? null;
       const intentMental = normalized.mentalState ?? fallback?.mentalState ?? null;
       const intentImprovement =
@@ -123,7 +124,7 @@ export function registerCustomerProfileRoute(router: Router) {
         totalOrdersCount: mergedOrdersCount,
         totalSpend: mergedTotalSpend,
         lastOrderDate: mergedLastOrderDate,
-        lastOrderValue: commerce.lastOrderValue,
+        lastOrderValue: commerce.lastOrderValue ?? dbLastOrderValue,
         firstOrderDate: mergedFirstOrderDate,
         firstOrderValue: commerce.firstOrderValue,
         orderSubscription: commerce.orderSubscription,

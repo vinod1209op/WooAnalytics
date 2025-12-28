@@ -146,6 +146,9 @@ export function extractCommerceFields(fields: GhlMappedField[]): GhlCommerceFiel
       ['last', 'order', 'total'],
       ['last', 'order', 'amount'],
       ['last', 'order', 'spend'],
+      ['recent', 'order', 'value'],
+      ['recent', 'order', 'total'],
+      ['recent', 'order', 'amount'],
     ])
   );
   const firstOrderDate = toIso(
