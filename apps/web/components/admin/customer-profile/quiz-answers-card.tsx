@@ -61,7 +61,7 @@ function renderQuizValue(value: unknown) {
   return <span className="whitespace-pre-wrap break-words">{String(value)}</span>;
 }
 
-type RawQuizAnswers = {
+export type RawQuizAnswers = {
   raw?: Record<string, unknown>;
   rawFields?: Array<{
     id?: string;

@@ -73,6 +73,7 @@ export default function CustomerProfilePage() {
   const topProducts = data?.topProducts ?? dbTopProducts;
   const topCategories = data?.topCategories ?? dbTopCategories;
   const loyalty = data?.loyalty ?? null;
+  const leadCoupons = data?.leadCoupons ?? [];
   const pointsBalance = loyalty?.pointsBalance ?? null;
   const pointsToNext = loyalty?.pointsToNext ?? null;
   const nextRewardAt = loyalty?.nextRewardAt ?? null;
@@ -373,6 +374,44 @@ export default function CustomerProfilePage() {
               </div>
             )}
           </Card>
+
+          {leadCoupons.length > 0 && (
+            <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
+              <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
+                Lead coupons
+              </div>
+              <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
+                {leadCoupons.map((coupon) => (
+                  <div
+                    key={coupon.code}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[#f0e5ff] bg-white/80 p-2 text-xs text-slate-700 dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100"
+                  >
+                    <div className="flex flex-col gap-1">
+                      <span className="font-semibold text-[#5b3ba4] dark:text-purple-100">
+                        {coupon.code}
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        {coupon.discountType ?? 'discount'} • {formatMoney(coupon.amount)}
+                      </span>
+                    </div>
+                    <div className="text-right text-[11px] text-slate-500">
+                      {coupon.remainingSpend == null ? (
+                        <span>Minimum spend not set</span>
+                      ) : coupon.eligible ? (
+                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-900/40 dark:text-emerald-100">
+                          Eligible
+                        </span>
+                      ) : (
+                        <span>
+                          {formatMoney(coupon.remainingSpend)} to qualify
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
 
           <div className="grid gap-4 lg:grid-cols-3">
             <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">

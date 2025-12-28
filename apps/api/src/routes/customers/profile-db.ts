@@ -2,6 +2,16 @@ import { prisma } from "../../prisma";
 import { round2 } from "../analytics/utils";
 import { mapOrderItemsWithCategories } from "./utils";
 
+export type LeadCouponSummary = {
+  code: string;
+  discountType: string | null;
+  amount: number;
+  minimumSpend: number | null;
+  maximumSpend: number | null;
+  remainingSpend: number | null;
+  eligible: boolean;
+};
+
 const ORDER_HISTORY_LIMIT = 12;
 
 export async function findFallbackCustomer(params: {
@@ -218,4 +228,52 @@ export async function loadDbProfile(params: { storeId: string; customerId: numbe
     topCategories,
     coupons: Array.from(couponSet.values()),
   };
+}
+
+export async function buildLeadCouponsSummary(params: {
+  storeId?: string;
+  totalSpend: number | null;
+}): Promise<LeadCouponSummary[]> {
+  if (!params.storeId) return [];
+  const coupons = await prisma.coupon.findMany({
+    where: {
+      storeId: params.storeId,
+      code: { startsWith: "lead-" },
+    },
+    select: {
+      code: true,
+      discountType: true,
+      amount: true,
+      minimumSpend: true,
+      maximumSpend: true,
+    },
+    orderBy: { code: "asc" },
+  });
+
+  const spend = Number.isFinite(params.totalSpend ?? NaN)
+    ? (params.totalSpend as number)
+    : null;
+
+  return coupons.map((coupon) => {
+    const minimumSpend =
+      coupon.minimumSpend != null && Number.isFinite(coupon.minimumSpend)
+        ? coupon.minimumSpend
+        : null;
+    const remainingSpend =
+      minimumSpend != null && spend != null
+        ? round2(Math.max(minimumSpend - spend, 0))
+        : null;
+    return {
+      code: coupon.code,
+      discountType: coupon.discountType ?? null,
+      amount: coupon.amount ?? 0,
+      minimumSpend,
+      maximumSpend:
+        coupon.maximumSpend != null && Number.isFinite(coupon.maximumSpend)
+          ? coupon.maximumSpend
+          : null,
+      remainingSpend,
+      eligible: remainingSpend != null ? remainingSpend <= 0 : false,
+    };
+  });
 }

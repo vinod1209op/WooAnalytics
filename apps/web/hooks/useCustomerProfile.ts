@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getJson } from '@/lib/api';
 import { useStore } from '@/providers/store-provider';
+import type { RawQuizAnswers } from '@/components/admin/customer-profile/quiz-answers-card';
 
 export type CustomerProfile = {
   customer: {
@@ -22,7 +23,7 @@ export type CustomerProfile = {
       improvementArea: string | null;
       updatedAt: string | null;
     };
-    rawQuizAnswers?: unknown;
+    rawQuizAnswers?: RawQuizAnswers | null;
   };
   metrics?: {
     totalOrdersCount?: number | null;
@@ -41,6 +42,15 @@ export type CustomerProfile = {
     lastRewardAt: number | null;
     tier: string | null;
   };
+  leadCoupons?: Array<{
+    code: string;
+    discountType: string | null;
+    amount: number;
+    minimumSpend: number | null;
+    maximumSpend: number | null;
+    remainingSpend: number | null;
+    eligible: boolean;
+  }>;
   productsOrdered?: string[];
   topProducts?: Array<{
     name: string;

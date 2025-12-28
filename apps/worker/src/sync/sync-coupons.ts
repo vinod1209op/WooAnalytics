@@ -30,6 +30,8 @@ export async function syncCoupons(ctx: SyncContext): Promise<SyncStats> {
           wooId,
           discountType: coupon.discount_type ?? null,
           amount: Number(coupon.amount ?? 0),
+          minimumSpend: toNullableNumber(coupon.minimum_amount),
+          maximumSpend: toNullableNumber(coupon.maximum_amount),
           dateExpires: coupon.date_expires ? new Date(coupon.date_expires) : null,
           usageLimit: coupon.usage_limit ?? null,
           usageCount: coupon.usage_count ?? null,
@@ -40,6 +42,8 @@ export async function syncCoupons(ctx: SyncContext): Promise<SyncStats> {
           code,
           discountType: coupon.discount_type ?? null,
           amount: Number(coupon.amount ?? 0),
+          minimumSpend: toNullableNumber(coupon.minimum_amount),
+          maximumSpend: toNullableNumber(coupon.maximum_amount),
           dateExpires: coupon.date_expires ? new Date(coupon.date_expires) : null,
           usageLimit: coupon.usage_limit ?? null,
           usageCount: coupon.usage_count ?? null,
@@ -56,6 +60,12 @@ export async function syncCoupons(ctx: SyncContext): Promise<SyncStats> {
   ctx.logger("Coupons synced", { processed, warnings: warnings.length });
 
   return { entity: "coupons", processed, warnings };
+}
+
+function toNullableNumber(value: any) {
+  if (value == null || value === "") return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
 }
 
 function renderProgress(label: string, count: number) {

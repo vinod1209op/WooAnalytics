@@ -233,6 +233,8 @@ model Coupon {
   code         String
   discountType String?
   amount       Float
+  minimumSpend Float?
+  maximumSpend Float?
   dateExpires  DateTime?
   usageLimit   Int?
   usageCount   Int?

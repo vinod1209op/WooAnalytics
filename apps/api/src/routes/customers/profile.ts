@@ -17,7 +17,11 @@ import {
 } from "./ghl-utils";
 import { buildLoyaltyStats } from "../../lib/loyalty";
 import { buildTopCategoriesFromGhl, buildTopProductsFromGhl } from "./ghl-product-utils";
-import { findFallbackCustomer, loadDbProfile } from "./profile-db";
+import {
+  buildLeadCouponsSummary,
+  findFallbackCustomer,
+  loadDbProfile,
+} from "./profile-db";
 
 export function registerCustomerProfileRoute(router: Router) {
   router.get("/:id/profile", async (req: Request, res: Response) => {
@@ -115,6 +119,20 @@ export function registerCustomerProfileRoute(router: Router) {
         dbProfile?.topCategories?.length ? dbProfile.topCategories : ghlTopCategories;
       const loyalty = buildLoyaltyStats(mergedTotalSpend);
 
+      const metrics = {
+        totalOrdersCount: mergedOrdersCount,
+        totalSpend: mergedTotalSpend,
+        lastOrderDate: mergedLastOrderDate,
+        lastOrderValue: commerce.lastOrderValue,
+        firstOrderDate: mergedFirstOrderDate,
+        firstOrderValue: commerce.firstOrderValue,
+        orderSubscription: commerce.orderSubscription,
+      };
+      const leadCoupons = await buildLeadCouponsSummary({
+        storeId,
+        totalSpend: metrics.totalSpend,
+      });
+
       return res.json({
         customer: {
           id: contact.id,
@@ -140,16 +158,9 @@ export function registerCustomerProfileRoute(router: Router) {
             derived: normalized.derived,
           },
         },
-        metrics: {
-          totalOrdersCount: mergedOrdersCount,
-          totalSpend: mergedTotalSpend,
-          lastOrderDate: mergedLastOrderDate,
-          lastOrderValue: commerce.lastOrderValue,
-          firstOrderDate: mergedFirstOrderDate,
-          firstOrderValue: commerce.firstOrderValue,
-          orderSubscription: commerce.orderSubscription,
-        },
+        metrics,
         loyalty,
+        leadCoupons,
         productsOrdered: commerce.productsOrdered,
         topProducts: mergedTopProducts,
         topCategories: mergedTopCategories,
