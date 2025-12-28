@@ -9,41 +9,27 @@ type Summary = Record<string, { count: number; ltv: number; daysSum: number; day
 
 export function SegmentCards({
   summary,
-  storeId,
-  days,
-  limit,
-  apiBase,
+  makeCsvUrl,
 }: {
   summary: Summary;
-  storeId: string | undefined;
-  days: number;
-  limit: number;
-  apiBase: string;
+  makeCsvUrl: (segment: string) => string;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {Object.entries(summary).map(([seg, info]) => {
         const avgDays =
           info.daysCount > 0 ? Math.round((info.daysSum / info.daysCount) * 10) / 10 : 0;
         const avgLtv = info.count > 0 ? Math.round((info.ltv / info.count) * 100) / 100 : 0;
-        const segCsvParams = new URLSearchParams({
-          storeId: storeId ?? '',
-          days: String(days),
-          limit: String(limit),
-          cursor: '0',
-          format: 'csv',
-          segment: seg,
-        });
-        const segCsvUrl = storeId ? `${apiBase}/customers/inactive?${segCsvParams.toString()}` : '#';
+        const segCsvUrl = makeCsvUrl(seg);
         return (
           <Card
             key={seg}
-            className="border-[#d9c7f5] bg-gradient-to-b from-white via-[#faf5ff] to-white/90 p-2.5 shadow-[0_8px_24px_rgba(93,63,163,0.08)] backdrop-blur-sm dark:border-purple-900/50 dark:bg-gradient-to-b dark:from-[#1a0f2b] dark:via-[#201338] dark:to-[#1a0f2b]/80"
+            className="border-[#eadcff] bg-white/80 p-3 shadow-sm backdrop-blur-sm dark:border-purple-900/50 dark:bg-purple-950/40"
           >
             <div className="flex items-center justify-between gap-2 pb-1">
               <Badge
                 className={cn(
-                  'bg-[#f0e5ff] text-[#5b3ba4] dark:bg-purple-900/60 dark:text-purple-50'
+                  'bg-[#f6efff] text-[#5b3ba4] dark:bg-purple-900/60 dark:text-purple-50'
                 )}
               >
                 {seg}
@@ -53,9 +39,9 @@ export function SegmentCards({
                 size="sm"
                 className="rounded-lg border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
                 asChild
-                disabled={!storeId}
+                disabled={!segCsvUrl}
               >
-                <a href={segCsvUrl}>Export</a>
+                <a href={segCsvUrl || '#'}>Export</a>
               </Button>
             </div>
             <div className="space-y-1 text-sm text-slate-700 dark:text-slate-200">

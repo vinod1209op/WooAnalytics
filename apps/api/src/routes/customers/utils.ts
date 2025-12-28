@@ -16,6 +16,48 @@ export function fullName(first?: string | null, last?: string | null) {
   return [first, last].filter(Boolean).join(" ").trim();
 }
 
+export function asLower(value?: string | null) {
+  return (value || "").trim().toLowerCase();
+}
+
+function toDate(value?: string | Date | null) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  const d = new Date(value);
+  return Number.isNaN(+d) ? null : d;
+}
+
+export function pickEarliestDate(...values: Array<string | Date | null | undefined>) {
+  let earliest: Date | null = null;
+  for (const value of values) {
+    const d = toDate(value ?? null);
+    if (!d) continue;
+    if (!earliest || d.getTime() < earliest.getTime()) earliest = d;
+  }
+  return earliest ? earliest.toISOString() : null;
+}
+
+export function pickLatestDate(...values: Array<string | Date | null | undefined>) {
+  let latest: Date | null = null;
+  for (const value of values) {
+    const d = toDate(value ?? null);
+    if (!d) continue;
+    if (!latest || d.getTime() > latest.getTime()) latest = d;
+  }
+  return latest ? latest.toISOString() : null;
+}
+
+export function preferHigherNumber(
+  primary?: number | null,
+  fallback?: number | null
+) {
+  const p = Number.isFinite(primary ?? NaN) ? (primary as number) : null;
+  const f = Number.isFinite(fallback ?? NaN) ? (fallback as number) : null;
+  if (p == null) return f;
+  if (f == null) return p;
+  return f > p ? f : p;
+}
+
 export const lastOrderSelect = {
   orderBy: { createdAt: "desc" as const },
   take: 1,

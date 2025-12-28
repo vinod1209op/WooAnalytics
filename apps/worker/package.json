@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate --schema ../../prisma/schema.prisma",
     "seed:store": "ts-node src/scripts/seed-store.ts",
     "postinstall": "pnpm prisma:generate",
-    "sync:full": "ts-node src/scripts/run-full-sync.ts"
+    "sync:full": "ts-node src/scripts/run-full-sync.ts",
+    "sync:since": "ts-node src/scripts/run-since-sync.ts"
   },
   "dependencies": {
     "@notionhq/client": "^5.4.0",

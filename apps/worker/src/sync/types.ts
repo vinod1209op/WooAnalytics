@@ -19,7 +19,8 @@ export interface SyncStats {
     | "orders"
     | "coupons"
     | "subscriptions"
-    | "analytics";
+    | "analytics"
+    | "loyalty";
   processed: number;
   warnings: string[];
   meta?: Record<string, unknown>;

@@ -228,9 +228,9 @@ export default function GhlPage() {
           <summary className="cursor-pointer list-none">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className={labelClass}>Loyalty preview</div>
+                <div className={labelClass}>Loyalty program</div>
                 <div className="text-sm text-slate-500">
-                  Draft view of rewards, messaging, and tiers.
+                  Program blueprint for rewards, messaging, and tiers.
                 </div>
               </div>
               <span className="text-xs text-slate-400 group-open:text-slate-500">

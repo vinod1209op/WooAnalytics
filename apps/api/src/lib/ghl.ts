@@ -9,12 +9,45 @@ const defaultHeaders = () => ({
   Version: "2021-07-28",
 });
 
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  options: { retries?: number; baseDelayMs?: number } = {}
+) {
+  const retries = options.retries ?? 3;
+  let delayMs = options.baseDelayMs ?? 400;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const res = await fetch(url, init);
+    if (res.status !== 429 || attempt === retries) return res;
+    const retryAfter = res.headers.get("retry-after");
+    let waitMs = retryAfter ? Number.parseInt(retryAfter, 10) * 1000 : delayMs;
+    if (!Number.isFinite(waitMs) || waitMs <= 0) waitMs = delayMs;
+    await sleep(waitMs);
+    delayMs *= 2;
+  }
+  return fetch(url, init);
+}
+
 type GhlContact = {
   id: string;
   email?: string | null;
   phone?: string | null;
   firstName?: string | null;
   lastName?: string | null;
+  dateAdded?: string | null;
+  dateUpdated?: string | null;
+  address?: string | null;
+  address1?: string | null;
+  address2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  zip?: string | null;
+  country?: string | null;
   tags?: string[];
   customFields?: Array<{ id: string; value: any }>;
 };
@@ -43,7 +76,7 @@ type UpsertPayload = {
 
 async function updateContactById(payload: UpsertPayload) {
   if (!payload.contactId) throw new Error("contactId is required for update");
-  const res = await fetch(`${GHL_BASE}/contacts/${payload.contactId}`, {
+  const res = await fetchWithRetry(`${GHL_BASE}/contacts/${payload.contactId}`, {
     method: "PUT",
     headers: defaultHeaders(),
     body: JSON.stringify({
@@ -66,7 +99,7 @@ export async function upsertContactWithTags(payload: UpsertPayload) {
     return updateContactById(payload);
   }
 
-  const res = await fetch(`${GHL_BASE}/contacts/`, {
+  const res = await fetchWithRetry(`${GHL_BASE}/contacts/`, {
     method: "POST",
     headers: defaultHeaders(),
     body: JSON.stringify({
@@ -108,7 +141,7 @@ export async function upsertContactWithTags(payload: UpsertPayload) {
 
 export async function fetchContact(contactId: string): Promise<GhlContact> {
   if (!process.env.GHL_PIT) throw new Error("GHL_PIT missing");
-  const res = await fetch(`${GHL_BASE}/contacts/${contactId}`, {
+  const res = await fetchWithRetry(`${GHL_BASE}/contacts/${contactId}`, {
     method: "GET",
     headers: defaultHeaders(),
   });
@@ -119,7 +152,7 @@ export async function fetchContact(contactId: string): Promise<GhlContact> {
 export async function listCustomFields(locationId: string) {
   if (!process.env.GHL_PIT) throw new Error("GHL_PIT missing");
   const url = `${GHL_BASE}/locations/${locationId}/customFields`;
-  const res = await fetch(url, {
+  const res = await fetchWithRetry(url, {
     method: "GET",
     headers: defaultHeaders(),
   });
@@ -146,7 +179,7 @@ export async function searchContactsByQuery(params: {
     query: params.query || "",
   };
 
-  const res = await fetch(`${GHL_BASE}/contacts/search`, {
+  const res = await fetchWithRetry(`${GHL_BASE}/contacts/search`, {
     method: "POST",
     headers: defaultHeaders(),
     body: JSON.stringify(body),

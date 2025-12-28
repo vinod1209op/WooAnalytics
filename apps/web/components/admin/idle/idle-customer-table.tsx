@@ -5,34 +5,34 @@ import { Fragment, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { GhlCustomer } from '@/hooks/useGhlCustomers';
+import type { GhlIdleCustomer } from '@/hooks/useGhlIdleCustomers';
 import { formatDate, formatMoney, formatPoints, formatPhone, nameFromEmail } from '@/lib/formatters';
 
-type SortKey = 'name' | 'email' | 'joined' | 'lastActive' | 'orders' | 'spend';
+type SortKey = 'name' | 'email' | 'lastOrder' | 'daysIdle' | 'spend' | 'risk' | 'segment';
 type SortDir = 'asc' | 'desc';
 
-export function CustomerTable({
+export function IdleCustomerTable({
   rows,
   loading,
 }: {
-  rows: GhlCustomer[];
+  rows: GhlIdleCustomer[];
   loading: boolean;
 }) {
   const hasData = rows.length > 0;
-  const columnCount = 8;
-  const [sortKey, setSortKey] = useState<SortKey>('lastActive');
+  const columnCount = 9;
+  const [sortKey, setSortKey] = useState<SortKey>('lastOrder');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const sortedRows = useMemo(() => {
     const list = [...rows];
-    const num = (value: number | null | undefined) =>
-      value == null || Number.isNaN(value) ? null : value;
     const str = (value: string | null | undefined) =>
       (value ?? '').toString().toLowerCase();
     const dateVal = (value: string | null | undefined) =>
       value ? new Date(value).getTime() : 0;
+    const num = (value: number | null | undefined) =>
+      value == null || Number.isNaN(value) ? 0 : value;
 
-    const compare = (a: GhlCustomer, b: GhlCustomer) => {
+    const compare = (a: GhlIdleCustomer, b: GhlIdleCustomer) => {
       let cmp = 0;
       switch (sortKey) {
         case 'name':
@@ -43,20 +43,22 @@ export function CustomerTable({
         case 'email':
           cmp = str(a.email).localeCompare(str(b.email));
           break;
-        case 'joined':
-          cmp = dateVal(a.dateAdded) - dateVal(b.dateAdded);
+        case 'lastOrder':
+          cmp = dateVal(a.metrics?.lastOrderDate) - dateVal(b.metrics?.lastOrderDate);
           break;
-        case 'lastActive':
-          cmp = dateVal(a.dateUpdated) - dateVal(b.dateUpdated);
-          break;
-        case 'orders':
+        case 'daysIdle':
           cmp =
-            (num(a.metrics?.totalOrdersCount) ?? -1) -
-            (num(b.metrics?.totalOrdersCount) ?? -1);
+            num(a.metrics?.daysSinceLastOrder) -
+            num(b.metrics?.daysSinceLastOrder);
           break;
         case 'spend':
-          cmp =
-            (num(a.metrics?.totalSpend) ?? -1) - (num(b.metrics?.totalSpend) ?? -1);
+          cmp = num(a.metrics?.lastOrderValue) - num(b.metrics?.lastOrderValue);
+          break;
+        case 'risk':
+          cmp = num(a.churnRisk) - num(b.churnRisk);
+          break;
+        case 'segment':
+          cmp = str(a.segment).localeCompare(str(b.segment));
           break;
         default:
           cmp = 0;
@@ -122,26 +124,32 @@ export function CustomerTable({
           </TableHead>
           <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
-              Joined
-              <SortControl columnKey="joined" />
+              Last order
+              <SortControl columnKey="lastOrder" />
             </div>
           </TableHead>
           <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
-              Last active
-              <SortControl columnKey="lastActive" />
-            </div>
-          </TableHead>
-          <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
-            <div className="flex items-center">
-              Orders
-              <SortControl columnKey="orders" />
+              Days idle
+              <SortControl columnKey="daysIdle" />
             </div>
           </TableHead>
           <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
               Spend
               <SortControl columnKey="spend" />
+            </div>
+          </TableHead>
+          <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
+            <div className="flex items-center">
+              Risk
+              <SortControl columnKey="risk" />
+            </div>
+          </TableHead>
+          <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
+            <div className="flex items-center">
+              Segment
+              <SortControl columnKey="segment" />
             </div>
           </TableHead>
           <TableHead className="text-right text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
@@ -160,13 +168,21 @@ export function CustomerTable({
         {!loading && !hasData && (
           <TableRow>
             <TableCell colSpan={columnCount} className="text-sm text-slate-500">
-              No GHL customers found.
+              No idle customers found.
             </TableCell>
           </TableRow>
         )}
         {sortedRows.map((row, index) => {
           const displayName = row.name || nameFromEmail(row.email);
-          const quizSubmitted = row.tags?.includes('quiz submitted');
+          const riskValue = row.churnRisk;
+          const riskTone =
+            riskValue == null
+              ? 'bg-slate-100 text-slate-600 dark:bg-slate-800/50 dark:text-slate-200'
+              : riskValue >= 80
+              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-100'
+              : riskValue >= 60
+              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-100'
+              : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100';
           return (
             <Fragment key={row.contactId}>
               <TableRow>
@@ -194,19 +210,10 @@ export function CustomerTable({
                           Close to reward
                         </Badge>
                       )}
-                    {(quizSubmitted || row.tags?.includes('needs_medical_clearance')) && (
-                      <div className="flex flex-wrap gap-1 text-[10px] uppercase tracking-wide">
-                        {quizSubmitted && (
-                          <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100">
-                            Quiz submitted
-                          </Badge>
-                        )}
-                        {row.tags?.includes('needs_medical_clearance') && (
-                          <Badge className="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-100">
-                            Needs clearance
-                          </Badge>
-                        )}
-                      </div>
+                    {row.tags?.includes('needs_medical_clearance') && (
+                      <Badge className="w-fit bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-100">
+                        Needs clearance
+                      </Badge>
                     )}
                   </div>
                 </TableCell>
@@ -214,28 +221,47 @@ export function CustomerTable({
                   {row.email || '—'}
                 </TableCell>
                 <TableCell className="text-sm text-slate-700 dark:text-slate-200">
-                  {formatDate(row.dateAdded)}
+                  {formatDate(row.metrics?.lastOrderDate ?? null)}
                 </TableCell>
                 <TableCell className="text-sm text-slate-700 dark:text-slate-200">
-                  {formatDate(row.dateUpdated)}
+                  {row.metrics?.daysSinceLastOrder != null
+                    ? `${row.metrics.daysSinceLastOrder.toFixed(1)} days`
+                    : '—'}
                 </TableCell>
                 <TableCell className="text-sm text-slate-700 dark:text-slate-200">
-                  {row.metrics?.totalOrdersCount ?? '—'}
+                  {formatMoney(row.metrics?.lastOrderValue ?? null)}
                 </TableCell>
                 <TableCell className="text-sm text-slate-700 dark:text-slate-200">
-                  {formatMoney(row.metrics?.totalSpend ?? null)}
+                  <Badge className={`w-fit text-[11px] ${riskTone}`}>
+                    {riskValue != null ? `${riskValue}/100` : '—'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    {row.segment ? (
+                      <Badge
+                        variant="outline"
+                        className="w-fit border-[#dcc7ff] bg-[#f6efff] text-xs text-[#5b3ba4] shadow-sm dark:border-purple-900/50 dark:bg-purple-900/40 dark:text-purple-100"
+                      >
+                        {row.segment}
+                      </Badge>
+                    ) : (
+                      <span className="text-sm text-slate-500">—</span>
+                    )}
+                    {row.topCategory && (
+                      <span className="text-[11px] text-slate-500">{row.topCategory}</span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      asChild
-                      variant="outline"
-                      size="sm"
-                      className="border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
-                    >
-                      <Link href={`/admin/customers/${row.contactId}`}>Details</Link>
-                    </Button>
-                  </div>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
+                  >
+                    <Link href={`/admin/customers/${row.contactId}`}>Details</Link>
+                  </Button>
                 </TableCell>
               </TableRow>
             </Fragment>

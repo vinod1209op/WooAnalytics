@@ -17,57 +17,55 @@ export async function syncCustomers(ctx: SyncContext): Promise<SyncStats> {
         customer.email?.toLowerCase() ??
         fallbackEmail(ctx.store.id, customer.id);
       const wooId = customer.id ? String(customer.id) : null;
+      const baseData = {
+        firstName: customer.first_name || null,
+        lastName: customer.last_name || null,
+        phone: customer.billing?.phone || null,
+      };
 
       let record: Customer | null = null;
 
       if (wooId) {
-        record = await prisma.customer.upsert({
+        record = await prisma.customer.findUnique({
           where: {
             storeId_wooId: {
               storeId: ctx.store.id,
               wooId,
             },
           },
-          update: {
-            email,
-            firstName: customer.first_name || null,
-            lastName: customer.last_name || null,
-            phone: customer.billing?.phone || null,
-          },
-          create: {
-            storeId: ctx.store.id,
-            wooId,
-            email,
-            firstName: customer.first_name || null,
-            lastName: customer.last_name || null,
-            phone: customer.billing?.phone || null,
-          },
+        });
+      }
+
+      if (record) {
+        const safeEmail =
+          (await resolveSafeEmail(ctx.store.id, record.id, email)) ?? record.email;
+        record = await prisma.customer.update({
+          where: { id: record.id },
+          data: { ...baseData, email: safeEmail },
         });
       } else {
-        record = await prisma.customer.findFirst({
+        const existing = await prisma.customer.findFirst({
           where: {
             storeId: ctx.store.id,
             email,
           },
         });
 
-        if (record) {
+        if (existing) {
           record = await prisma.customer.update({
-            where: { id: record.id },
+            where: { id: existing.id },
             data: {
-              firstName: customer.first_name || null,
-              lastName: customer.last_name || null,
-              phone: customer.billing?.phone || null,
+              ...baseData,
+              ...(wooId && !existing.wooId ? { wooId } : {}),
             },
           });
         } else {
           record = await prisma.customer.create({
             data: {
               storeId: ctx.store.id,
+              wooId,
               email,
-              firstName: customer.first_name || null,
-              lastName: customer.last_name || null,
-              phone: customer.billing?.phone || null,
+              ...baseData,
             },
           });
         }
@@ -97,6 +95,18 @@ export async function syncCustomers(ctx: SyncContext): Promise<SyncStats> {
 
 function fallbackEmail(storeId: string, id?: number | string) {
   return `guest-${storeId}-${id ?? Date.now()}@wooanalytics.local`;
+}
+
+async function resolveSafeEmail(storeId: string, id: number, email: string) {
+  const conflict = await prisma.customer.findFirst({
+    where: {
+      storeId,
+      email,
+      NOT: { id },
+    },
+    select: { id: true },
+  });
+  return conflict ? null : email;
 }
 
 function renderProgress(label: string, count: number) {

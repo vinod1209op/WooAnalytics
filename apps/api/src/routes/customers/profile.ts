@@ -1,295 +1,421 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../../prisma";
+import {
+  fullName,
+  mapOrderItemsWithCategories,
+  pickEarliestDate,
+  pickLatestDate,
+  preferHigherNumber,
+} from "./utils";
+import { fetchContact, listCustomFields } from "../../lib/ghl";
+import { normalizeFromCustomFields } from "../../lib/intent-normalizer";
+import {
+  buildFieldDefMap,
+  extractCommerceFields,
+  extractWooId,
+  formatGhlAddress,
+  mapCustomFields,
+  normalizeFieldDefs,
+} from "./ghl-utils";
 import { round2 } from "../analytics/utils";
-import { fullName, mapOrderItemsWithCategories } from "./utils";
-import { fetchContact, searchContactsByQuery } from "../../lib/ghl";
+import { buildLoyaltyStats } from "../../lib/loyalty";
+import { buildTopCategoriesFromGhl, buildTopProductsFromGhl } from "./ghl-product-utils";
 
-const MS_DAY = 1000 * 60 * 60 * 24;
-
-function toIso(value: Date | null | undefined) {
-  return value ? value.toISOString() : null;
-}
-
-export function registerCustomerProfileRoute(router: Router) {
-  router.get("/:id/profile", async (req: Request, res: Response) => {
-    try {
-      const storeId = String(req.query.storeId || "");
-      const customerId = Number(req.params.id);
-      const locationId =
-        typeof req.query.locationId === "string" && req.query.locationId.trim()
-          ? req.query.locationId.trim()
-          : process.env.GHL_LOCATION_ID;
-
-      if (!storeId) return res.status(400).json({ error: "storeId is required" });
-      if (!Number.isFinite(customerId)) {
-        return res.status(400).json({ error: "Invalid customer id" });
-      }
-
-      const customer = await prisma.customer.findFirst({
-        where: { id: customerId, storeId },
+async function findFallbackCustomer(params: {
+  storeId?: string;
+  wooId?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}) {
+  if (!params.storeId) return null;
+  if (params.wooId) {
+    const customer = await prisma.customer.findFirst({
+      where: { storeId: params.storeId, wooId: params.wooId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        wooId: true,
+        createdAt: true,
+        lastActiveAt: true,
+        primaryIntent: true,
+        mentalState: true,
+        improvementArea: true,
+        intentUpdatedAt: true,
+      },
+    });
+    if (customer) return customer;
+  }
+  if (params.email) {
+    const customer = await prisma.customer.findFirst({
+      where: { storeId: params.storeId, email: params.email },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        wooId: true,
+        createdAt: true,
+        lastActiveAt: true,
+        primaryIntent: true,
+        mentalState: true,
+        improvementArea: true,
+        intentUpdatedAt: true,
+      },
+    });
+    if (customer) return customer;
+  }
+  if (params.phone) {
+    const phoneDigits = params.phone.replace(/\D/g, "");
+    if (phoneDigits) {
+      return prisma.customer.findFirst({
+        where: { storeId: params.storeId, phone: { contains: phoneDigits } },
         select: {
           id: true,
-          wooId: true,
           email: true,
           firstName: true,
           lastName: true,
           phone: true,
+          wooId: true,
           createdAt: true,
           lastActiveAt: true,
           primaryIntent: true,
           mentalState: true,
           improvementArea: true,
           intentUpdatedAt: true,
-          rawQuizAnswers: true,
         },
       });
+    }
+  }
+  return null;
+}
 
-      if (!customer) return res.status(404).json({ error: "Customer not found" });
+const ORDER_HISTORY_LIMIT = 12;
 
-      const orders = await prisma.order.findMany({
-        where: { storeId, customerId },
-        orderBy: { createdAt: "desc" },
+async function loadDbProfile(params: { storeId: string; customerId: number }) {
+  const aggregate = await prisma.order.aggregate({
+    where: { storeId: params.storeId, customerId: params.customerId },
+    _count: { _all: true },
+    _sum: { total: true },
+    _min: { createdAt: true },
+    _max: { createdAt: true },
+  });
+
+  const orders = await prisma.order.findMany({
+    where: { storeId: params.storeId, customerId: params.customerId },
+    orderBy: { createdAt: "desc" },
+    take: ORDER_HISTORY_LIMIT,
+    select: {
+      id: true,
+      createdAt: true,
+      status: true,
+      currency: true,
+      total: true,
+      subtotal: true,
+      discountTotal: true,
+      shippingTotal: true,
+      taxTotal: true,
+      paymentMethod: true,
+      shippingCountry: true,
+      shippingCity: true,
+      coupons: {
         select: {
-          id: true,
-          createdAt: true,
-          status: true,
-          currency: true,
-          paymentMethod: true,
-          shippingCountry: true,
-          shippingCity: true,
-          total: true,
-          subtotal: true,
-          discountTotal: true,
-          shippingTotal: true,
-          taxTotal: true,
-          coupons: {
+          coupon: { select: { code: true, amount: true, discountType: true } },
+        },
+      },
+      items: {
+        select: {
+          productId: true,
+          name: true,
+          sku: true,
+          quantity: true,
+          lineTotal: true,
+          product: {
             select: {
-              coupon: { select: { code: true, discountType: true, amount: true } },
-            },
-          },
-          items: {
-            select: {
-              productId: true,
-              name: true,
-              sku: true,
-              quantity: true,
-              lineTotal: true,
-              product: {
-                select: {
-                  categories: {
-                    select: { category: { select: { id: true, name: true } } },
-                  },
-                },
+              categories: {
+                select: { category: { select: { id: true, name: true } } },
               },
             },
           },
         },
-      });
+      },
+    },
+  });
 
-      const ordersCount = orders.length;
-      const firstOrderAt = ordersCount ? orders[ordersCount - 1].createdAt : null;
-      const lastOrderAt = ordersCount ? orders[0].createdAt : null;
-      const totalSpend = round2(
-        orders.reduce((sum, order) => sum + (order.total ?? 0), 0)
-      );
-      const avgOrderValue =
-        ordersCount > 0 ? round2(totalSpend / ordersCount) : null;
-      const avgDaysBetweenOrders =
-        ordersCount > 1 && firstOrderAt && lastOrderAt
-          ? round2(
-              (lastOrderAt.getTime() - firstOrderAt.getTime()) /
-                (ordersCount - 1) /
-                MS_DAY
-            )
-          : null;
-      const daysSinceLastOrder =
-        lastOrderAt != null
-          ? round2((Date.now() - lastOrderAt.getTime()) / MS_DAY)
-          : null;
-      const monthsActive =
-        firstOrderAt && lastOrderAt
-          ? Math.max(
-              1,
-              (lastOrderAt.getTime() - firstOrderAt.getTime()) / (MS_DAY * 30)
-            )
-          : null;
-      const ordersPerMonth =
-        monthsActive && monthsActive > 0 ? round2(ordersCount / monthsActive) : null;
+  const mappedOrders = orders.map((order) => {
+    const items = mapOrderItemsWithCategories(order.items ?? []);
+    const coupons =
+      order.coupons?.map((c) => c.coupon?.code).filter(Boolean) ?? [];
+    return {
+      id: order.id,
+      createdAt: order.createdAt?.toISOString() ?? null,
+      status: order.status ?? null,
+      currency: order.currency ?? null,
+      total: order.total != null ? round2(order.total) : null,
+      subtotal: order.subtotal != null ? round2(order.subtotal) : null,
+      discountTotal: order.discountTotal != null ? round2(order.discountTotal) : null,
+      shippingTotal: order.shippingTotal != null ? round2(order.shippingTotal) : null,
+      taxTotal: order.taxTotal != null ? round2(order.taxTotal) : null,
+      paymentMethod: order.paymentMethod ?? null,
+      shipping: {
+        city: order.shippingCity ?? null,
+        country: order.shippingCountry ?? null,
+      },
+      coupons,
+      items,
+    };
+  });
 
-      const productMap = new Map<
-        string,
-        {
-          productId: number | null;
-          name: string;
-          sku: string | null;
-          quantity: number;
-          revenue: number;
-          categories: string[];
-        }
-      >();
-      const categoryMap = new Map<string, { name: string; quantity: number; revenue: number }>();
-      let totalItems = 0;
+  const productMap = new Map<
+    string,
+    { name: string; quantity: number; revenue: number; categories: string[] }
+  >();
+  const categoryMap = new Map<string, { name: string; quantity: number; revenue: number }>();
+  const couponSet = new Set<string>();
 
-      const ordersWithItems = orders.map((order) => {
-        const items = mapOrderItemsWithCategories(order.items);
-        const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-        totalItems += itemCount;
-
-        for (const item of items) {
-          const key = item.productId != null ? `id:${item.productId}` : `name:${item.name}`;
-          const existing = productMap.get(key);
-          const revenue = round2(item.lineTotal ?? 0);
-          const categories = item.categories ?? [];
-          if (!existing) {
-            productMap.set(key, {
-              productId: item.productId ?? null,
-              name: item.name ?? "Item",
-              sku: item.sku ?? null,
-              quantity: item.quantity,
-              revenue,
-              categories: [...categories],
-            });
-          } else {
-            existing.quantity += item.quantity;
-            existing.revenue = round2(existing.revenue + revenue);
-            existing.categories = Array.from(
-              new Set([...existing.categories, ...categories])
-            );
-          }
-
-          for (const category of categories) {
-            const cat = categoryMap.get(category) ?? {
-              name: category,
-              quantity: 0,
-              revenue: 0,
-            };
-            cat.quantity += item.quantity;
-            cat.revenue = round2(cat.revenue + revenue);
-            categoryMap.set(category, cat);
-          }
-        }
-
-        return {
-          id: order.id,
-          createdAt: toIso(order.createdAt),
-          status: order.status,
-          currency: order.currency,
-          paymentMethod: order.paymentMethod,
-          shippingCountry: order.shippingCountry,
-          shippingCity: order.shippingCity,
-          total: round2(order.total ?? 0),
-          subtotal: order.subtotal != null ? round2(order.subtotal) : null,
-          discountTotal: order.discountTotal != null ? round2(order.discountTotal) : null,
-          shippingTotal: order.shippingTotal != null ? round2(order.shippingTotal) : null,
-          taxTotal: order.taxTotal != null ? round2(order.taxTotal) : null,
-          coupons: (order.coupons || [])
-            .map((coupon) => coupon.coupon)
-            .filter(Boolean),
-          itemCount,
-          items,
-        };
-      });
-
-      const products = Array.from(productMap.values()).sort(
-        (a, b) => b.quantity - a.quantity || b.revenue - a.revenue
-      );
-      const categories = Array.from(categoryMap.values()).sort(
-        (a, b) => b.quantity - a.quantity || b.revenue - a.revenue
-      );
-
-      let ghl: any = null;
-      if (locationId && process.env.GHL_PIT) {
-        try {
-          let matchedBy: "email" | "phone" | "query" | null = null;
-          let contactId: string | null = null;
-          const email = customer.email?.trim().toLowerCase();
-          const phone = customer.phone?.trim();
-          const phoneDigits = phone ? phone.replace(/\D/g, "") : "";
-
-          if (email) {
-            const result = await searchContactsByQuery({
-              locationId,
-              query: email,
-              pageLimit: 10,
-            });
-            const exact = result.contacts.find(
-              (c) => c.email && c.email.toLowerCase() === email
-            );
-            const fallback = result.contacts[0] ?? null;
-            contactId = exact?.id ?? fallback?.id ?? null;
-            matchedBy = contactId ? (exact ? "email" : "query") : null;
-          }
-
-          if (!contactId && phoneDigits) {
-            const result = await searchContactsByQuery({
-              locationId,
-              query: phoneDigits,
-              pageLimit: 10,
-            });
-            const exact = result.contacts.find((c) => {
-              const digits = c.phone ? c.phone.replace(/\D/g, "") : "";
-              return digits === phoneDigits;
-            });
-            const fallback = result.contacts[0] ?? null;
-            contactId = exact?.id ?? fallback?.id ?? null;
-            matchedBy = contactId ? (exact ? "phone" : "query") : null;
-          }
-
-          if (contactId) {
-            const contact = await fetchContact(contactId);
-            ghl = { contact, matchedBy, locationId };
-          } else {
-            ghl = { contact: null, matchedBy: null, locationId };
-          }
-        } catch (err) {
-          const message = err instanceof Error ? err.message : "GHL fetch failed";
-          ghl = { contact: null, error: message, locationId };
-        }
+  mappedOrders.forEach((order) => {
+    order.coupons.forEach((code) => couponSet.add(code));
+    order.items.forEach((item) => {
+      const key = item.productId != null ? String(item.productId) : item.name ?? "item";
+      const existing = productMap.get(key);
+      const revenue = item.lineTotal ?? 0;
+      if (existing) {
+        existing.quantity += item.quantity;
+        existing.revenue += revenue;
+        item.categories.forEach((cat) => {
+          if (!existing.categories.includes(cat)) existing.categories.push(cat);
+        });
       } else {
-        ghl = { contact: null, error: "GHL not configured", locationId };
+        productMap.set(key, {
+          name: item.name ?? "Item",
+          quantity: item.quantity,
+          revenue,
+          categories: [...item.categories],
+        });
       }
+
+      item.categories.forEach((cat) => {
+        const catEntry = categoryMap.get(cat);
+        if (catEntry) {
+          catEntry.quantity += item.quantity;
+          catEntry.revenue += revenue;
+        } else {
+          categoryMap.set(cat, { name: cat, quantity: item.quantity, revenue });
+        }
+      });
+    });
+  });
+
+  const topProducts = Array.from(productMap.values())
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 6)
+    .map((p) => ({
+      name: p.name,
+      quantity: p.quantity,
+      revenue: round2(p.revenue),
+      categories: p.categories,
+    }));
+
+  const topCategories = Array.from(categoryMap.values())
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 6)
+    .map((c) => ({
+      name: c.name,
+      quantity: c.quantity,
+      revenue: round2(c.revenue),
+    }));
+
+  const ordersCount = aggregate._count._all ?? 0;
+  const totalSpend = aggregate._sum.total ?? 0;
+  const firstOrderAt = aggregate._min.createdAt ?? null;
+  const lastOrderAt = aggregate._max.createdAt ?? null;
+  const avgOrderValue =
+    ordersCount > 0 ? round2(totalSpend / ordersCount) : null;
+  const avgDaysBetweenOrders =
+    ordersCount > 1 && firstOrderAt && lastOrderAt
+      ? round2(
+          (lastOrderAt.getTime() - firstOrderAt.getTime()) /
+            (ordersCount - 1) /
+            (1000 * 60 * 60 * 24)
+        )
+      : null;
+  const daysSinceLastOrder = lastOrderAt
+    ? round2((Date.now() - lastOrderAt.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  return {
+    stats: {
+      ordersCount,
+      totalSpend: round2(totalSpend),
+      avgOrderValue,
+      firstOrderAt: firstOrderAt?.toISOString() ?? null,
+      lastOrderAt: lastOrderAt?.toISOString() ?? null,
+      avgDaysBetweenOrders,
+      daysSinceLastOrder,
+    },
+    orders: mappedOrders,
+    topProducts,
+    topCategories,
+    coupons: Array.from(couponSet.values()),
+  };
+}
+
+export function registerCustomerProfileRoute(router: Router) {
+  router.get("/:id/profile", async (req: Request, res: Response) => {
+    try {
+      const contactId = String(req.params.id || "").trim();
+      if (!contactId) return res.status(400).json({ error: "Contact id is required" });
+
+      if (!process.env.GHL_PIT) {
+        return res.status(400).json({ error: "GHL_PIT is not configured" });
+      }
+
+      const storeId = typeof req.query.storeId === "string" ? req.query.storeId : undefined;
+      const locationId =
+        typeof req.query.locationId === "string" && req.query.locationId.trim()
+          ? req.query.locationId.trim()
+          : process.env.GHL_LOCATION_ID;
+
+      const contact = await fetchContact(contactId);
+      if (!contact?.id) return res.status(404).json({ error: "Contact not found" });
+
+      let defs: any = null;
+      if (locationId) {
+        try {
+          defs = await listCustomFields(locationId);
+        } catch {
+          defs = null;
+        }
+      }
+      const defList = normalizeFieldDefs(defs);
+      const defMap = buildFieldDefMap(defList);
+      const defRecord: Record<string, { name?: string; fieldKey?: string }> = {};
+      defList.forEach((def) => {
+        defRecord[def.id] = { name: def.name, fieldKey: def.fieldKey };
+      });
+
+      const mappedFields = mapCustomFields(contact.customFields || [], defMap);
+      const commerce = extractCommerceFields(mappedFields);
+      const wooIdFromGhl = extractWooId(mappedFields);
+      const normalized = normalizeFromCustomFields(contact.customFields || [], {
+        fieldDefs: defRecord,
+      });
+
+      const fallback = await findFallbackCustomer({
+        storeId,
+        wooId: wooIdFromGhl,
+        email: contact.email ?? null,
+        phone: contact.phone ?? null,
+      });
+      const dbProfile =
+        storeId && fallback?.id
+          ? await loadDbProfile({ storeId, customerId: fallback.id })
+          : null;
+
+      const firstName = contact.firstName ?? fallback?.firstName ?? null;
+      const lastName = contact.lastName ?? fallback?.lastName ?? null;
+      const email = contact.email ?? fallback?.email ?? null;
+      const phone = contact.phone ?? fallback?.phone ?? null;
+      const mergedDateAdded = pickEarliestDate(contact.dateAdded ?? null, fallback?.createdAt);
+      const mergedDateUpdated = pickLatestDate(
+        contact.dateUpdated ?? null,
+        fallback?.lastActiveAt,
+        commerce.lastOrderDate,
+        dbProfile?.stats?.lastOrderAt ?? null
+      );
+      const mergedOrdersCount = preferHigherNumber(
+        commerce.totalOrdersCount,
+        dbProfile?.stats?.ordersCount ?? null
+      );
+      const mergedTotalSpend = preferHigherNumber(
+        commerce.totalSpend,
+        dbProfile?.stats?.totalSpend ?? null
+      );
+      const mergedFirstOrderDate = pickEarliestDate(
+        commerce.firstOrderDate,
+        dbProfile?.stats?.firstOrderAt ?? null
+      );
+      const mergedLastOrderDate = pickLatestDate(
+        commerce.lastOrderDate,
+        dbProfile?.stats?.lastOrderAt ?? null
+      );
+      const intentPrimary = normalized.primaryIntent ?? fallback?.primaryIntent ?? null;
+      const intentMental = normalized.mentalState ?? fallback?.mentalState ?? null;
+      const intentImprovement =
+        normalized.improvementArea ?? fallback?.improvementArea ?? null;
+      const intentUpdatedAt = normalized.primaryIntent
+        ? contact.dateUpdated ?? null
+        : fallback?.intentUpdatedAt?.toISOString() ?? null;
+      const ghlProducts = commerce.productsOrdered ?? [];
+      const ghlTopProducts = buildTopProductsFromGhl(ghlProducts);
+      const ghlTopCategories = buildTopCategoriesFromGhl(ghlProducts);
+      const mergedTopProducts =
+        dbProfile?.topProducts?.length ? dbProfile.topProducts : ghlTopProducts;
+      const mergedTopCategories =
+        dbProfile?.topCategories?.length ? dbProfile.topCategories : ghlTopCategories;
+      const loyalty = buildLoyaltyStats(mergedTotalSpend);
 
       return res.json({
         customer: {
-          id: customer.id,
-          wooId: customer.wooId,
-          email: customer.email,
-          name: fullName(customer.firstName, customer.lastName) || null,
-          firstName: customer.firstName,
-          lastName: customer.lastName,
-          phone: customer.phone,
-          createdAt: toIso(customer.createdAt),
-          lastActiveAt: toIso(customer.lastActiveAt),
+          id: contact.id,
+          email,
+          name: fullName(firstName, lastName) || null,
+          firstName,
+          lastName,
+          phone,
+          address: formatGhlAddress(contact),
+          dateAdded: mergedDateAdded,
+          dateUpdated: mergedDateUpdated,
+          tags: contact.tags || [],
           intent: {
-            primaryIntent: customer.primaryIntent ?? null,
-            mentalState: customer.mentalState ?? null,
-            improvementArea: customer.improvementArea ?? null,
-            updatedAt: toIso(customer.intentUpdatedAt),
+            primaryIntent: intentPrimary,
+            mentalState: intentMental,
+            improvementArea: intentImprovement,
+            updatedAt: intentUpdatedAt,
           },
-          rawQuizAnswers: customer.rawQuizAnswers ?? null,
+          rawQuizAnswers: {
+            raw: normalized.raw,
+            rawFields: normalized.rawFields,
+            messaging: normalized.messaging,
+            derived: normalized.derived,
+          },
         },
-        insights: {
-          ordersCount,
-          repeatBuyer: ordersCount > 1,
-          totalSpend,
-          avgOrderValue,
-          avgDaysBetweenOrders,
-          daysSinceLastOrder,
-          ordersPerMonth,
-          firstOrderAt: toIso(firstOrderAt),
-          lastOrderAt: toIso(lastOrderAt),
+        metrics: {
+          totalOrdersCount: mergedOrdersCount,
+          totalSpend: mergedTotalSpend,
+          lastOrderDate: mergedLastOrderDate,
+          lastOrderValue: commerce.lastOrderValue,
+          firstOrderDate: mergedFirstOrderDate,
+          firstOrderValue: commerce.firstOrderValue,
+          orderSubscription: commerce.orderSubscription,
         },
-        products: {
-          totalItems,
-          products,
-          categories,
-        },
-        orders: ordersWithItems,
-        ghl,
+        loyalty,
+        productsOrdered: commerce.productsOrdered,
+        topProducts: mergedTopProducts,
+        topCategories: mergedTopCategories,
+        customFields: mappedFields,
+        db: fallback
+          ? {
+              customer: {
+                id: fallback.id,
+                wooId: fallback.wooId ?? null,
+                createdAt: fallback.createdAt?.toISOString() ?? null,
+                lastActiveAt: fallback.lastActiveAt?.toISOString() ?? null,
+              },
+              stats: dbProfile?.stats ?? null,
+              orders: dbProfile?.orders ?? [],
+              topProducts: dbProfile?.topProducts ?? [],
+              topCategories: dbProfile?.topCategories ?? [],
+              coupons: dbProfile?.coupons ?? [],
+            }
+          : null,
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("GET /customers/:id/profile error:", err);
-      return res.status(500).json({ error: "Internal error" });
+      return res.status(500).json({ error: err?.message ?? "Internal error" });
     }
   });
 }

@@ -2,21 +2,30 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { StatCard } from '@/components/admin/customer-profile/stat-card';
+import { QuizAnswersCard } from '@/components/admin/customer-profile/quiz-answers-card';
 import { useCustomerProfile } from '@/hooks/useCustomerProfile';
+import { useCountUp } from '@/hooks/useCountUp';
+import { formatDate, formatMoney, formatPhone, formatPoints, nameFromEmail } from '@/lib/formatters';
+import { getLastReward, getNextReward } from '@/lib/loyalty';
 
-function formatDate(value?: string | null) {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(+d)) return value;
-  return d.toLocaleDateString();
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE?.trim() || 'http://localhost:3001';
+
+function formatDays(value: number | null | undefined) {
+  if (value == null || Number.isNaN(value)) return '—';
+  return `${value.toFixed(1)} days`;
 }
 
-function formatMoney(value: number | null | undefined) {
-  if (value == null || Number.isNaN(value)) return '—';
-  return `$${value.toFixed(2)}`;
+function daysSinceDate(value?: string | null) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(+d)) return null;
+  const diff = (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24);
+  return Math.round(diff * 10) / 10;
 }
 
 function formatLabel(value?: string | null) {
@@ -24,123 +33,102 @@ function formatLabel(value?: string | null) {
   return value.replace(/_/g, ' ');
 }
 
-function nameFromEmail(email?: string | null) {
-  if (!email) return 'Unknown';
-  const handle = email.split('@')[0] || '';
-  if (!handle) return 'Unknown';
-  return handle
-    .replace(/[._-]+/g, ' ')
-    .split(' ')
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
-function formatPhone(value?: string | null) {
-  if (!value) return '—';
-  const raw = value.trim();
-  if (!raw) return '—';
-  const digits = raw.replace(/\D/g, '');
-  if (!digits) return raw;
-  if (digits.length === 10) {
-    return `+1 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-  if (digits.length === 11 && digits.startsWith('1')) {
-    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
-  }
-  if (digits.length < 10) {
-    return `+1 ${digits}`;
-  }
-  return `+${digits}`;
-}
-
-function stripQuestionNumber(label: string) {
-  const cleaned = label.replace(/^\s*\d+\s*[).:-]\s*/g, '').trim();
-  return cleaned || label.trim() || 'Question';
-}
-
-function isNonQuestionField(label?: string | null, fieldKey?: string | null) {
-  const hay = `${label ?? ''} ${fieldKey ?? ''}`.toLowerCase();
-  if (!hay.trim()) return false;
-  if (hay.includes('total spend')) return true;
-  if (hay.includes('ltv') || hay.includes('lifetime value')) return true;
-  const orderTokens = ['order', 'orders'];
-  const metricTokens = ['total', 'count', 'date', 'value', 'subscription', 'spend'];
-  if (orderTokens.some((token) => hay.includes(token)) && metricTokens.some((token) => hay.includes(token))) {
-    return true;
-  }
-  return false;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
-
-function formatQuizKey(key: string) {
-  if (!key) return 'Value';
-  const spaced = key
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/_/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
-
-function renderQuizValue(value: unknown) {
-  if (value == null || value === '') {
-    return <span className="text-slate-400">—</span>;
-  }
-  if (Array.isArray(value)) {
-    return (
-      <ul className="space-y-1">
-        {value.map((item, index) => (
-          <li key={`${index}-${String(item)}`} className="flex gap-2">
-            <span className="text-slate-400">•</span>
-            <span className="break-words">{String(item)}</span>
-          </li>
-        ))}
-      </ul>
-    );
-  }
-  if (isRecord(value)) {
-    return (
-      <pre className="whitespace-pre-wrap text-xs text-slate-500">
-        {JSON.stringify(value, null, 2)}
-      </pre>
-    );
-  }
-  return <span className="whitespace-pre-wrap break-words">{String(value)}</span>;
-}
-
-function StatCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string | number | null | undefined;
-  hint?: string;
-}) {
-  return (
-    <div className="rounded-xl border border-[#eadcff] bg-gradient-to-br from-white via-white to-[#f6efff] p-3 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
-      <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
-        {label}
-      </div>
-      <div className="mt-1 text-lg font-semibold text-[#5b3ba4] dark:text-purple-100">
-        {value ?? '—'}
-      </div>
-      {hint && <div className="text-xs text-slate-500">{hint}</div>}
-    </div>
-  );
-}
-
 export default function CustomerProfilePage() {
   const params = useParams<{ id: string }>();
-  const customerId = Number(params?.id);
-  const { data, loading, error } = useCustomerProfile(customerId);
+  const contactId = params?.id;
+  const { data, loading, error } = useCustomerProfile(contactId);
+  const [actionState, setActionState] = useState<Record<string, 'idle' | 'sending' | 'sent' | 'error'>>({});
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const ghlContact = data?.ghl?.contact ?? null;
-  const ghlTags = ghlContact?.tags ?? [];
+  const runAction = async (action: string) => {
+    if (!data?.customer?.id) return;
+    setActionError(null);
+    setActionState((prev) => ({ ...prev, [action]: 'sending' }));
+    try {
+      const res = await fetch(`${API_BASE}/customers/ghl-action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactId: data.customer.id, action }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.error || 'Failed to send action');
+      }
+      setActionState((prev) => ({ ...prev, [action]: 'sent' }));
+      setTimeout(() => {
+        setActionState((prev) => ({ ...prev, [action]: 'idle' }));
+      }, 1800);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to send action';
+      setActionError(message);
+      setActionState((prev) => ({ ...prev, [action]: 'error' }));
+    }
+  };
+
+  const tags = data?.customer?.tags ?? [];
+  const dbStats = data?.db?.stats ?? null;
+  const dbOrders = data?.db?.orders ?? [];
+  const dbTopProducts = data?.db?.topProducts ?? [];
+  const dbTopCategories = data?.db?.topCategories ?? [];
+  const topProducts = data?.topProducts ?? dbTopProducts;
+  const topCategories = data?.topCategories ?? dbTopCategories;
+  const loyalty = data?.loyalty ?? null;
+  const pointsBalance = loyalty?.pointsBalance ?? null;
+  const pointsToNext = loyalty?.pointsToNext ?? null;
+  const nextRewardAt = loyalty?.nextRewardAt ?? null;
+  const animatedPoints = useCountUp(pointsBalance, { durationMs: 900 });
+  const displayPoints = animatedPoints ?? pointsBalance;
+  const nextReward = getNextReward(pointsBalance);
+  const lastReward = getLastReward(pointsBalance);
+  const progress =
+    displayPoints != null && nextRewardAt
+      ? Math.min(100, Math.round((displayPoints / nextRewardAt) * 100))
+      : 0;
+  const avgOrderValue =
+    dbStats?.avgOrderValue ??
+    (data?.metrics?.totalSpend != null &&
+    data?.metrics?.totalOrdersCount != null &&
+    data.metrics.totalOrdersCount > 0
+      ? data.metrics.totalSpend / data.metrics.totalOrdersCount
+      : null);
+  const customerInsightsStats = [
+    { label: 'Total spend', value: formatMoney(data?.metrics?.totalSpend ?? null) },
+    { label: 'Points', value: formatPoints(displayPoints ?? null) },
+    { label: 'Avg order', value: formatMoney(avgOrderValue) },
+    { label: 'Total orders', value: data?.metrics?.totalOrdersCount ?? '—' },
+    { label: 'First order', value: formatDate(data?.metrics?.firstOrderDate ?? null) },
+    { label: 'Last order', value: formatDate(data?.metrics?.lastOrderDate ?? null) },
+    { label: 'Last order value', value: formatMoney(data?.metrics?.lastOrderValue ?? null) },
+    {
+      label: 'Days since last',
+      value: formatDays(
+        dbStats?.daysSinceLastOrder ?? daysSinceDate(data?.metrics?.lastOrderDate ?? null)
+      ),
+    },
+  ];
+
+  customerInsightsStats.push({
+    label: 'Points to next',
+    value: pointsToNext != null ? `${pointsToNext} pts` : '—',
+  });
+
+  customerInsightsStats.push({
+    label: 'Next reward at',
+    value: nextRewardAt != null ? formatPoints(nextRewardAt) : '—',
+  });
+
+  if (dbStats?.avgDaysBetweenOrders != null) {
+    customerInsightsStats.push({
+      label: 'Avg days between',
+      value: formatDays(dbStats.avgDaysBetweenOrders),
+    });
+  }
+  if (data?.metrics?.orderSubscription) {
+    customerInsightsStats.push({
+      label: 'Order subscription',
+      value: data.metrics.orderSubscription,
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -154,7 +142,7 @@ export default function CustomerProfilePage() {
               Full customer profile
             </h1>
             <p className="text-sm text-[#6f4bb3] dark:text-purple-200/80">
-              Deep order history + GHL context for a single customer.
+              Unified profile view for a single buyer.
             </p>
           </div>
           <Button
@@ -162,7 +150,7 @@ export default function CustomerProfilePage() {
             variant="outline"
             className="rounded-xl border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
           >
-            <Link href="/admin/idle">Back to idle customers</Link>
+            <Link href="/admin/idle">Back to customers</Link>
           </Button>
         </div>
       </Card>
@@ -182,8 +170,8 @@ export default function CustomerProfilePage() {
       {data && (
         <>
           <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
-            <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr]">
-              <div className="space-y-3">
+            <div className="grid gap-3 lg:grid-cols-[1.35fr_1fr]">
+              <div className="space-y-2">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Customer
                 </div>
@@ -196,36 +184,31 @@ export default function CustomerProfilePage() {
                   );
                 })()}
                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                  {data.db?.customer?.id && (
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-[#dcc7ff] bg-white/70 px-2 py-0.5 text-[#5b3ba4] shadow-sm dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100"
+                    >
+                      ID {data.db.customer.id}
+                    </Badge>
+                  )}
+                  {data.db?.customer?.wooId && (
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-[#dcc7ff] bg-white/70 px-2 py-0.5 text-[#5b3ba4] shadow-sm dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100"
+                    >
+                      Woo {data.db.customer.wooId}
+                    </Badge>
+                  )}
                   <Badge
                     variant="outline"
-                    className="border-[#dcc7ff] bg-white/60 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100"
+                    className="rounded-full border-[#dcc7ff] bg-white/70 px-2 py-0.5 text-[#5b3ba4] shadow-sm dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100"
                   >
-                    ID {data.customer.id}
+                    GHL {data.customer.id}
                   </Badge>
-                  {data.customer.wooId && (
-                    <Badge
-                      variant="outline"
-                      className="border-[#dcc7ff] bg-white/60 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100"
-                    >
-                      Woo {data.customer.wooId}
-                    </Badge>
-                  )}
-                  {ghlContact?.id && (
-                    <Badge
-                      variant="outline"
-                      className="border-[#dcc7ff] bg-white/60 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100"
-                    >
-                      GHL {ghlContact.id}
-                    </Badge>
-                  )}
-                  {data.insights.repeatBuyer && (
-                    <Badge className="bg-[#f0e5ff] text-[#5b3ba4] dark:bg-purple-900/60 dark:text-purple-50">
-                      Repeat buyer
-                    </Badge>
-                  )}
                 </div>
               </div>
-              <div className="rounded-xl border border-[#eadcff] bg-white/70 p-3 text-sm text-slate-600 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-200">
+              <div className="rounded-2xl border border-[#eadcff] bg-white/80 p-4 text-sm text-slate-600 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-200">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Contact
                 </div>
@@ -251,7 +234,7 @@ export default function CustomerProfilePage() {
                       Joined
                     </div>
                     <div className="mt-1 text-sm text-slate-700 dark:text-slate-100">
-                      {formatDate(data.customer.createdAt)}
+                      {formatDate(data.customer.dateAdded)}
                     </div>
                   </div>
                   <div>
@@ -259,18 +242,26 @@ export default function CustomerProfilePage() {
                       Last active
                     </div>
                     <div className="mt-1 text-sm text-slate-700 dark:text-slate-100">
-                      {formatDate(data.customer.lastActiveAt)}
+                      {formatDate(data.customer.dateUpdated)}
+                    </div>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <div className="text-[11px] uppercase tracking-wide text-slate-500">
+                      Address
+                    </div>
+                    <div className="mt-1 text-sm text-slate-700 dark:text-slate-100">
+                      {data.customer.address || '—'}
                     </div>
                   </div>
                 </div>
               </div>
-              {ghlTags.length > 0 && (
+              {tags.length > 0 && (
                 <div className="lg:col-span-2">
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Tags
+                    GHL Tags
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {ghlTags.map((tag) => (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {tags.map((tag) => (
                       <Badge
                         key={tag}
                         variant="outline"
@@ -285,42 +276,142 @@ export default function CustomerProfilePage() {
             </div>
           </Card>
 
-          <div className="space-y-3">
+          <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
             <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
               Customer insights
             </div>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <StatCard label="Orders" value={data.insights.ordersCount} />
-              <StatCard label="Total spend" value={formatMoney(data.insights.totalSpend)} />
-              <StatCard label="Avg order" value={formatMoney(data.insights.avgOrderValue)} />
-              <StatCard
-                label="Orders / month"
-                value={data.insights.ordersPerMonth ?? '—'}
-                hint="Based on first → last order"
-              />
-              <StatCard
-                label="Avg days between"
-                value={data.insights.avgDaysBetweenOrders ?? '—'}
-              />
-              <StatCard
-                label="Days since last"
-                value={data.insights.daysSinceLastOrder ?? '—'}
-              />
-              <StatCard label="First order" value={formatDate(data.insights.firstOrderAt)} />
-              <StatCard label="Last order" value={formatDate(data.insights.lastOrderAt)} />
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {customerInsightsStats.map((item) => (
+                <StatCard key={item.label} label={item.label} value={item.value} />
+              ))}
             </div>
-          </div>
+          </Card>
+
+          <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
+                  Loyalty engagement
+                </div>
+                <div className="mt-1 text-sm text-slate-600 dark:text-slate-200">
+                  {nextReward?.title
+                    ? `Next reward: ${nextReward.title}`
+                    : 'Next reward not set yet.'}
+                </div>
+              </div>
+              {lastReward?.title && (
+                <div className="rounded-full border border-[#dcc7ff] bg-[#f6efff] px-3 py-1 text-xs text-[#5b3ba4] shadow-sm dark:border-purple-900/50 dark:bg-purple-900/40 dark:text-purple-100">
+                  Last reward: {lastReward.title}
+                </div>
+              )}
+              {pointsToNext != null && pointsToNext <= 10 && (
+                <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-700 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-900/30 dark:text-emerald-100">
+                  Close to reward
+                </div>
+              )}
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span>{formatPoints(displayPoints)} balance</span>
+                <span>
+                  {nextRewardAt != null ? formatPoints(nextRewardAt) : '—'} target
+                </span>
+              </div>
+              <div className="mt-2 h-3 w-full rounded-full bg-[#f4ecff] shadow-inner dark:bg-purple-900/40">
+                <div
+                  className="h-3 rounded-full bg-gradient-to-r from-[#b892ff] via-[#8e63f1] to-[#6f4bb3] transition-all duration-700"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className="mt-2 text-xs text-slate-500">
+                {pointsToNext != null
+                  ? `${pointsToNext} points away from the next reward.`
+                  : 'Points to next reward will appear after spend is calculated.'}
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                className="rounded-xl border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
+                onClick={() => runAction('email_nudge')}
+                disabled={actionState.email_nudge === 'sending'}
+              >
+                {actionState.email_nudge === 'sent'
+                  ? 'Email sent'
+                  : actionState.email_nudge === 'sending'
+                  ? 'Sending…'
+                  : 'Send email nudge'}
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-xl border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
+                onClick={() => runAction('sms_nudge')}
+                disabled={actionState.sms_nudge === 'sending'}
+              >
+                {actionState.sms_nudge === 'sent'
+                  ? 'SMS sent'
+                  : actionState.sms_nudge === 'sending'
+                  ? 'Sending…'
+                  : 'Send SMS nudge'}
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-xl border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
+                onClick={() => runAction('reward_unlocked')}
+                disabled={actionState.reward_unlocked === 'sending'}
+              >
+                {actionState.reward_unlocked === 'sent'
+                  ? 'Reward tagged'
+                  : actionState.reward_unlocked === 'sending'
+                  ? 'Sending…'
+                  : 'Tag reward unlocked'}
+              </Button>
+            </div>
+            {actionError && (
+              <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+                {actionError}
+              </div>
+            )}
+          </Card>
 
           <div className="grid gap-4 lg:grid-cols-3">
             <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
               <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
                 Intent
               </div>
-              <div className="mt-3 grid gap-2 text-sm text-slate-700 dark:text-slate-200 sm:grid-cols-2">
-                <div>Primary: {formatLabel(data.customer.intent?.primaryIntent ?? null)}</div>
-                <div>Mental state: {formatLabel(data.customer.intent?.mentalState ?? null)}</div>
-                <div>Improvement: {formatLabel(data.customer.intent?.improvementArea ?? null)}</div>
-                <div>Updated: {formatDate(data.customer.intent?.updatedAt ?? null)}</div>
+              <div className="mt-3 grid gap-3 text-sm text-slate-700 dark:text-slate-200 sm:grid-cols-2">
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-slate-500">
+                    Primary
+                  </div>
+                  <div className="mt-1 font-medium">
+                    {formatLabel(data.customer.intent?.primaryIntent ?? null)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-slate-500">
+                    Mental state
+                  </div>
+                  <div className="mt-1 font-medium">
+                    {formatLabel(data.customer.intent?.mentalState ?? null)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-slate-500">
+                    Improvement
+                  </div>
+                  <div className="mt-1 font-medium">
+                    {formatLabel(data.customer.intent?.improvementArea ?? null)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-slate-500">
+                    Updated
+                  </div>
+                  <div className="mt-1 font-medium">
+                    {formatDate(data.customer.intent?.updatedAt ?? null)}
+                  </div>
+                </div>
               </div>
             </Card>
             <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
@@ -328,27 +419,24 @@ export default function CustomerProfilePage() {
                 Top products
               </div>
               <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
-                {data.products.products.length ? (
-                  data.products.products.slice(0, 10).map((product) => (
-                    <div
-                      key={`${product.productId ?? product.name}`}
-                      className="flex flex-wrap items-center justify-between gap-2"
-                    >
-                      <span className="font-medium">
-                        {product.name} {product.sku ? `(${product.sku})` : ''}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        {product.quantity} units • {formatMoney(product.revenue)}
-                      </span>
-                    </div>
-                  ))
+                {topProducts.length ? (
+                  <ul className="space-y-2">
+                    {topProducts.map((product) => (
+                      <li
+                        key={product.name}
+                        className="rounded-md border border-[#f0e5ff] bg-white/80 p-2 text-xs text-slate-700 dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium">{product.name}</span>
+                          <span>
+                            {product.quantity} units • {formatMoney(product.revenue)}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
-                  <div>No product history yet.</div>
-                )}
-                {data.products.products.length > 10 && (
-                  <div className="text-xs text-slate-500">
-                    Showing top 10 of {data.products.products.length} products.
-                  </div>
+                  <div>No product data found in order history.</div>
                 )}
               </div>
             </Card>
@@ -357,307 +445,150 @@ export default function CustomerProfilePage() {
                 Top categories
               </div>
               <div className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
-                {data.products.categories.length ? (
-                  data.products.categories.slice(0, 10).map((category) => (
-                    <div
-                      key={category.name}
-                      className="flex flex-wrap items-center justify-between gap-2"
-                    >
-                      <span className="font-medium">{category.name}</span>
-                      <span className="text-xs text-slate-500">
-                        {category.quantity} units • {formatMoney(category.revenue)}
-                      </span>
-                    </div>
-                  ))
+                {topCategories.length ? (
+                  <ul className="space-y-2">
+                    {topCategories.map((category) => (
+                      <li
+                        key={category.name}
+                        className="flex items-center justify-between rounded-md border border-[#f0e5ff] bg-white/80 p-2 text-xs text-slate-700 dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100"
+                      >
+                        <span className="font-medium">{category.name}</span>
+                        <span>
+                          {category.quantity} units • {formatMoney(category.revenue)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
-                  <div>No category history yet.</div>
-                )}
-                {data.products.categories.length > 10 && (
-                  <div className="text-xs text-slate-500">
-                    Showing top 10 of {data.products.categories.length} categories.
-                  </div>
+                  <div>No category data found in order history.</div>
                 )}
               </div>
             </Card>
           </div>
 
-          <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
+          {dbOrders.length > 0 && (
+            <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
-                  Orders
+                  Order history
                 </div>
-                <div className="text-sm text-slate-500">
-                  {data.orders.length} orders • {data.products.totalItems} items
+                <div className="text-xs text-slate-500">
+                  Showing {dbOrders.length} most recent orders
                 </div>
               </div>
-              <div className="text-xs text-slate-500">
-                Last interaction: {formatDate(data.insights.lastOrderAt)}
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-4">
-              {data.orders.length ? (
-                data.orders.map((order) => (
+              <div className="mt-4 space-y-4">
+                {dbOrders.map((order) => (
                   <div
                     key={order.id}
-                    className="rounded-xl border border-[#eadcff] bg-white/80 p-3 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/40"
+                    className="rounded-xl border border-[#f0e5ff] bg-white/80 p-3 text-sm text-slate-700 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100"
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#f0e5ff] pb-2 dark:border-purple-900/40">
-                      <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    {(() => {
+                      const categories = new Set<string>();
+                      order.items.forEach((item) => {
+                        (item.categories || []).forEach((cat) => categories.add(cat));
+                      });
+                      const categoryList = Array.from(categories.values());
+                      return (
+                        <>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-sm font-semibold text-[#5b3ba4] dark:text-purple-100">
                         Order #{order.id}
                       </div>
                       <div className="text-xs text-slate-500">
                         {formatDate(order.createdAt)} • {formatMoney(order.total)}
                       </div>
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
-                      {order.status && <span>Status: {order.status}</span>}
-                      {order.paymentMethod && <span>Payment: {order.paymentMethod}</span>}
-                      {(order.shippingCity || order.shippingCountry) && (
-                        <span>
-                          Ship: {order.shippingCity ?? '—'}
-                          {order.shippingCountry ? `, ${order.shippingCountry}` : ''}
-                        </span>
-                      )}
-                      {order.coupons?.length ? (
-                        <span>Coupons: {order.coupons.map((c) => c.code).filter(Boolean).join(', ')}</span>
-                      ) : null}
+                    <div className="mt-1 text-xs text-slate-500">
+                      Status: {order.status ?? '—'} • Payment:{' '}
+                      {order.paymentMethod ?? '—'} • Ship:{' '}
+                      {[order.shipping.city, order.shipping.country]
+                        .filter(Boolean)
+                        .join(', ') || '—'}
                     </div>
-
-                    <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                    <div className="mt-3 grid gap-3 lg:grid-cols-[2fr_1fr]">
                       <div className="space-y-2">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <div className="text-[11px] uppercase tracking-wide text-slate-500">
                           Items
                         </div>
-                        {order.items.length ? (
-                          <ul className="space-y-2">
-                            {order.items.map((item, index) => (
-                              <li
-                                key={`${order.id}-${item.productId ?? 'item'}-${index}`}
-                                className="rounded-md border border-[#f0e5ff] bg-white/80 p-2 text-xs text-slate-700 dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100"
-                              >
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <span className="min-w-0 flex-1 font-medium">
-                                    {item.name ?? 'Item'} x{item.quantity}
-                                  </span>
-                                  <span className="text-slate-500 dark:text-slate-300">
-                                    {formatMoney(item.lineTotal)}
-                                  </span>
-                                </div>
-                                {(item.sku || item.categories?.length) && (
-                                  <div className="mt-1 break-words text-[11px] text-slate-500 dark:text-slate-300">
-                                    {item.sku && <span>SKU {item.sku}</span>}
-                                    {item.sku && item.categories?.length && (
-                                      <span className="px-1">•</span>
-                                    )}
-                                    {item.categories?.length ? (
-                                      <span>{item.categories.join(', ')}</span>
-                                    ) : null}
-                                  </div>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <div className="text-xs text-slate-500">No items listed.</div>
-                        )}
+                        <ul className="space-y-2">
+                          {order.items.map((item, index) => (
+                            <li
+                              key={`${order.id}-${item.productId ?? index}`}
+                              className="rounded-md border border-[#f0e5ff] bg-white/80 p-2 text-xs text-slate-700 dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span>
+                                  {item.name ?? 'Item'} x{item.quantity}
+                                </span>
+                                <span>{formatMoney(item.lineTotal)}</span>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-
-                      <div className="space-y-2">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <div className="space-y-1 text-xs text-slate-600 dark:text-slate-200">
+                        <div className="text-[11px] uppercase tracking-wide text-slate-500">
                           Totals
                         </div>
-                        <div className="space-y-1 text-sm text-slate-700 dark:text-slate-200">
-                          <div>Subtotal: {formatMoney(order.subtotal)}</div>
-                          <div>Discount: {formatMoney(order.discountTotal)}</div>
-                          <div>Shipping: {formatMoney(order.shippingTotal)}</div>
-                          <div>Tax: {formatMoney(order.taxTotal)}</div>
-                          <div className="font-medium text-[#5b3ba4] dark:text-purple-100">
-                            Total: {formatMoney(order.total)}
-                          </div>
+                        <div>Subtotal: {formatMoney(order.subtotal)}</div>
+                        <div>Discount: {formatMoney(order.discountTotal)}</div>
+                        <div>Shipping: {formatMoney(order.shippingTotal)}</div>
+                        <div>Tax: {formatMoney(order.taxTotal)}</div>
+                        <div className="font-semibold text-[#5b3ba4] dark:text-purple-100">
+                          Total: {formatMoney(order.total)}
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-sm text-slate-500">No orders found.</div>
-              )}
-            </div>
-          </Card>
-
-          <Card className="border-[#eadcff] bg-white/70 p-4 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
-            {data.customer.rawQuizAnswers ? (
-              (() => {
-                const quiz = data.customer.rawQuizAnswers as {
-                  raw?: Record<string, unknown>;
-                  rawFields?: Array<{
-                    id?: string;
-                    name?: string | null;
-                    fieldKey?: string | null;
-                    value?: unknown;
-                  }>;
-                  messaging?: Record<string, unknown>;
-                  derived?: Record<string, unknown>;
-                };
-                const quizFields = Array.isArray(quiz?.rawFields) ? quiz.rawFields : [];
-                const quizRaw = isRecord(quiz?.raw) ? quiz.raw : {};
-                const quizMessaging = isRecord(quiz?.messaging) ? quiz.messaging : null;
-                const quizDerived = isRecord(quiz?.derived) ? quiz.derived : null;
-                const entries = quizFields.length
-                  ? quizFields
-                      .map((field) => {
-                        const rawLabel = field.name || field.fieldKey || field.id || 'Question';
-                        return {
-                          id: field.id,
-                          rawLabel,
-                          fieldKey: field.fieldKey,
-                          label: stripQuestionNumber(rawLabel),
-                          value: field.value,
-                        };
-                      })
-                      .filter((entry) => !isNonQuestionField(entry.rawLabel, entry.fieldKey))
-                  : Object.entries(quizRaw)
-                      .map(([key, value]) => ({
-                        id: key,
-                        rawLabel: key,
-                        fieldKey: null,
-                        label: stripQuestionNumber(key),
-                        value,
-                      }))
-                      .filter((entry) => !isNonQuestionField(entry.rawLabel, entry.fieldKey));
-
-                return (
-                  <details className="group">
-                    <summary className="cursor-pointer list-none">
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-transparent pb-2 group-open:border-[#f0e5ff] dark:group-open:border-purple-900/40">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf] dark:text-purple-200">
-                          Questions answered
-                        </div>
-                        <span className="text-[11px] uppercase tracking-wide text-slate-400 group-open:text-slate-500">
-                          Toggle
-                        </span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                        <Badge
-                          variant="outline"
-                          className="border-[#dcc7ff] bg-white/60 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100"
-                        >
-                          Responses {entries.length}
-                        </Badge>
-                        {quizMessaging && (
-                          <Badge
-                            variant="outline"
-                            className="border-[#dcc7ff] bg-white/60 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100"
-                          >
-                            Messaging {Object.keys(quizMessaging).length}
-                          </Badge>
-                        )}
-                        {quizDerived && (
-                          <Badge
-                            variant="outline"
-                            className="border-[#dcc7ff] bg-white/60 text-[#5b3ba4] dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100"
-                          >
-                            Derived {Object.keys(quizDerived).length}
-                          </Badge>
-                        )}
-                      </div>
-                    </summary>
-
-                    {entries.length > 0 ? (
-                      <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                        {entries.map((entry, index) => (
-                          <details
-                            key={`${entry.id ?? entry.label}-${index}`}
-                            className="group rounded-lg border border-[#f0e5ff] bg-white/80 p-3 text-sm text-slate-700 shadow-sm transition hover:border-[#d4bfff] dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100"
-                          >
-                            <summary className="cursor-pointer list-none">
-                              <div className="flex flex-wrap items-start justify-between gap-2">
-                                <div className="flex items-start gap-3">
-                                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-[#dcc7ff] bg-white text-xs font-semibold text-[#5b3ba4] shadow-sm dark:border-purple-900/60 dark:bg-purple-900/40 dark:text-purple-100">
-                                    {index + 1}
-                                  </span>
-                                  <div>
-                                    <div className="text-[11px] uppercase tracking-wide text-slate-500">
-                                      Question {index + 1}
-                                    </div>
-                                    <div className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-100">
-                                      {entry.label}
-                                    </div>
-                                  </div>
-                                </div>
-                                {entry.id && (
-                                  <span className="text-[11px] uppercase tracking-wide text-slate-400">
-                                    ID {entry.id}
-                                  </span>
-                                )}
-                              </div>
-                            </summary>
-                            <div className="mt-3 border-t border-[#f0e5ff] pt-3 text-sm text-slate-600 dark:border-purple-900/40 dark:text-slate-200">
-                              <div className="text-[11px] uppercase tracking-wide text-slate-500">
-                                Answer
-                              </div>
-                              <div className="mt-2">{renderQuizValue(entry.value)}</div>
-                            </div>
-                          </details>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="mt-3 text-sm text-slate-500">No quiz answers found.</div>
-                    )}
-
-                    {(quizMessaging || quizDerived) && (
-                      <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                        {quizMessaging && (
-                          <div className="rounded-lg border border-[#f0e5ff] bg-white/80 p-3 text-sm text-slate-700 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100">
-                            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                              Messaging cues
-                            </div>
-                            <div className="mt-2 space-y-2">
-                              {Object.entries(quizMessaging)
-                                .filter(([key]) => key !== 'resultFields')
-                                .map(([key, value]) => (
-                                  <div key={key}>
-                                    <div className="text-[11px] uppercase tracking-wide text-slate-500">
-                                      {formatQuizKey(key)}
-                                    </div>
-                                    <div className="mt-1 text-sm text-slate-600 dark:text-slate-200">
-                                      {renderQuizValue(value)}
-                                    </div>
-                                  </div>
-                                ))}
+                    {(categoryList.length > 0 || order.coupons.length > 0) && (
+                      <div className="mt-3 border-t border-[#f0e5ff] pt-3 dark:border-purple-900/40">
+                        {categoryList.length > 0 && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] uppercase tracking-wide text-slate-500">
+                              Categories
+                            </span>
+                            <div className="flex flex-nowrap items-center gap-1 overflow-x-auto">
+                              {categoryList.map((cat) => (
+                                <Badge
+                                  key={`${order.id}-${cat}`}
+                                  variant="outline"
+                                  className="border-[#dcc7ff] bg-[#f6efff] text-[10px] text-[#5b3ba4] dark:border-purple-900/50 dark:bg-purple-900/40 dark:text-purple-100"
+                                >
+                                  {cat}
+                                </Badge>
+                              ))}
                             </div>
                           </div>
                         )}
-                        {quizDerived && (
-                          <div className="rounded-lg border border-[#f0e5ff] bg-white/80 p-3 text-sm text-slate-700 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100">
-                            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                              Derived insights
-                            </div>
-                            <div className="mt-2 space-y-2">
-                              {Object.entries(quizDerived).map(([key, value]) => (
-                                <div key={key}>
-                                  <div className="text-[11px] uppercase tracking-wide text-slate-500">
-                                    {formatQuizKey(key)}
-                                  </div>
-                                  <div className="mt-1 text-sm text-slate-600 dark:text-slate-200">
-                                    {renderQuizValue(value)}
-                                  </div>
-                                </div>
+                        {order.coupons.length > 0 && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-[11px] uppercase tracking-wide text-slate-500">
+                              Coupons
+                            </span>
+                            <div className="flex flex-nowrap items-center gap-1 overflow-x-auto">
+                              {order.coupons.map((code) => (
+                                <Badge
+                                  key={`${order.id}-coupon-${code}`}
+                                  variant="outline"
+                                  className="border-[#dcc7ff] bg-[#f6efff] text-[10px] text-[#5b3ba4] dark:border-purple-900/50 dark:bg-purple-900/40 dark:text-purple-100"
+                                >
+                                  {code}
+                                </Badge>
                               ))}
                             </div>
                           </div>
                         )}
                       </div>
                     )}
-                  </details>
-                );
-              })()
-            ) : (
-              <div className="mt-3 text-sm text-slate-500">No quiz answers found.</div>
-            )}
-          </Card>
+                        </>
+                      );
+                    })()}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          <QuizAnswersCard rawQuizAnswers={data.customer.rawQuizAnswers} />
         </>
       )}
     </div>

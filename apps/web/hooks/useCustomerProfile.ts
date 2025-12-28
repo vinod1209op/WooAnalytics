@@ -4,42 +4,18 @@ import { useEffect, useState } from 'react';
 import { getJson } from '@/lib/api';
 import { useStore } from '@/providers/store-provider';
 
-export type CustomerOrder = {
-  id: number;
-  createdAt: string | null;
-  status?: string | null;
-  currency?: string | null;
-  paymentMethod?: string | null;
-  shippingCountry?: string | null;
-  shippingCity?: string | null;
-  total: number | null;
-  subtotal?: number | null;
-  discountTotal?: number | null;
-  shippingTotal?: number | null;
-  taxTotal?: number | null;
-  coupons?: Array<{ code?: string | null; discountType?: string | null; amount?: number | null }>;
-  itemCount?: number;
-  items: Array<{
-    productId: number | null;
-    name: string | null;
-    sku: string | null;
-    quantity: number;
-    lineTotal: number;
-    categories?: string[];
-  }>;
-};
-
 export type CustomerProfile = {
   customer: {
-    id: number;
-    wooId?: string | null;
-    email: string;
+    id: string;
+    email: string | null;
     name: string | null;
     firstName?: string | null;
     lastName?: string | null;
     phone?: string | null;
-    createdAt?: string | null;
-    lastActiveAt?: string | null;
+    address?: string | null;
+    dateAdded?: string | null;
+    dateUpdated?: string | null;
+    tags?: string[];
     intent?: {
       primaryIntent: string | null;
       mentalState: string | null;
@@ -48,47 +24,90 @@ export type CustomerProfile = {
     };
     rawQuizAnswers?: unknown;
   };
-  insights: {
-    ordersCount: number;
-    repeatBuyer: boolean;
-    totalSpend: number;
-    avgOrderValue: number | null;
-    avgDaysBetweenOrders: number | null;
-    daysSinceLastOrder: number | null;
-    ordersPerMonth: number | null;
-    firstOrderAt: string | null;
-    lastOrderAt: string | null;
+  metrics?: {
+    totalOrdersCount?: number | null;
+    totalSpend?: number | null;
+    lastOrderDate?: string | null;
+    lastOrderValue?: number | null;
+    firstOrderDate?: string | null;
+    firstOrderValue?: number | null;
+    orderSubscription?: string | null;
   };
-  products: {
-    totalItems: number;
-    products: Array<{
-      productId: number | null;
+  loyalty?: {
+    pointsBalance: number | null;
+    pointsLifetime: number | null;
+    pointsToNext: number | null;
+    nextRewardAt: number | null;
+    lastRewardAt: number | null;
+    tier: string | null;
+  };
+  productsOrdered?: string[];
+  topProducts?: Array<{
+    name: string;
+    quantity: number;
+    revenue: number | null;
+    categories: string[];
+  }>;
+  topCategories?: Array<{
+    name: string;
+    quantity: number;
+    revenue: number | null;
+  }>;
+  customFields?: Array<{ id: string; name?: string; fieldKey?: string; value: any }>;
+  db?: null | {
+    customer: {
+      id: number;
+      wooId: string | null;
+      createdAt: string | null;
+      lastActiveAt: string | null;
+    };
+    stats: null | {
+      ordersCount: number;
+      totalSpend: number;
+      avgOrderValue: number | null;
+      firstOrderAt: string | null;
+      lastOrderAt: string | null;
+      avgDaysBetweenOrders: number | null;
+      daysSinceLastOrder: number | null;
+    };
+    orders: Array<{
+      id: number;
+      createdAt: string | null;
+      status: string | null;
+      currency: string | null;
+      total: number | null;
+      subtotal: number | null;
+      discountTotal: number | null;
+      shippingTotal: number | null;
+      taxTotal: number | null;
+      paymentMethod: string | null;
+      shipping: { city: string | null; country: string | null };
+      coupons: string[];
+      items: Array<{
+        productId: number | null;
+        name: string | null;
+        sku: string | null;
+        quantity: number;
+        lineTotal: number | null;
+        categories: string[];
+      }>;
+    }>;
+    topProducts: Array<{
       name: string;
-      sku: string | null;
       quantity: number;
       revenue: number;
       categories: string[];
     }>;
-    categories: Array<{ name: string; quantity: number; revenue: number }>;
+    topCategories: Array<{
+      name: string;
+      quantity: number;
+      revenue: number;
+    }>;
+    coupons: string[];
   };
-  orders: CustomerOrder[];
-  ghl?: {
-    contact?: {
-      id: string;
-      email?: string | null;
-      phone?: string | null;
-      firstName?: string | null;
-      lastName?: string | null;
-      tags?: string[];
-      customFields?: Array<{ id: string; value: any }>;
-    } | null;
-    matchedBy?: string | null;
-    error?: string;
-    locationId?: string;
-  } | null;
 };
 
-export function useCustomerProfile(customerId?: number) {
+export function useCustomerProfile(contactId?: string) {
   const { store, loading: loadingStore, error: storeError } = useStore();
   const [data, setData] = useState<CustomerProfile | null>(null);
   const [loading, setLoading] = useState(false);
@@ -96,13 +115,7 @@ export function useCustomerProfile(customerId?: number) {
 
   useEffect(() => {
     if (loadingStore) return;
-    if (!store?.id) {
-      setError(storeError || 'No store configured');
-      setData(null);
-      setLoading(false);
-      return;
-    }
-    if (!customerId || !Number.isFinite(customerId)) {
+    if (!contactId) {
       setError('Invalid customer id');
       setData(null);
       setLoading(false);
@@ -111,13 +124,13 @@ export function useCustomerProfile(customerId?: number) {
 
     let cancelled = false;
     const params = new URLSearchParams();
-    params.set('storeId', store.id);
+    if (store?.id) params.set('storeId', store.id);
 
     (async () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await getJson<CustomerProfile>(`/customers/${customerId}/profile`, params);
+        const res = await getJson<CustomerProfile>(`/customers/${contactId}/profile`, params);
         if (cancelled) return;
         setData(res);
       } catch (err) {
@@ -139,7 +152,7 @@ export function useCustomerProfile(customerId?: number) {
     return () => {
       cancelled = true;
     };
-  }, [store?.id, loadingStore, storeError, customerId]);
+  }, [store?.id, loadingStore, contactId]);
 
   return { data, loading: loadingStore || loading, error: error ?? storeError ?? null };
 }

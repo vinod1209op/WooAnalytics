@@ -7,6 +7,7 @@ import { syncOrders } from "./sync-orders";
 import { syncCoupons } from "./sync-coupons";
 import { syncSubscriptions } from "./sync-subscriptions";
 import { syncAnalytics } from "./sync-analytics";
+import { syncLoyalty } from "./sync-loyalty";
 
 export async function syncStore(
   store: Store,
@@ -25,6 +26,7 @@ export async function syncStore(
     full: options.full,
   });
   summaries.push(orderStats);
+  summaries.push(await syncLoyalty(context));
   const analyticsStats = await syncAnalytics(context, {
     remoteDaily: (orderStats.meta?.remoteDaily as Record<
       string,

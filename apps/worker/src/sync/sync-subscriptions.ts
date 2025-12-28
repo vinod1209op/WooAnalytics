@@ -89,15 +89,42 @@ async function ensureCustomer(ctx: SyncContext, sub: any) {
   };
 
   if (wooCustomerId) {
-    const record = await prisma.customer.upsert({
+    const byWooId = await prisma.customer.findUnique({
       where: {
         storeId_wooId: {
           storeId: ctx.store.id,
           wooId: wooCustomerId,
         },
       },
-      update: baseData,
-      create: {
+    });
+
+    if (byWooId) {
+      const safeEmail =
+        (await resolveSafeEmail(ctx.store.id, byWooId.id, email)) ?? byWooId.email;
+      const record = await prisma.customer.update({
+        where: { id: byWooId.id },
+        data: { ...baseData, email: safeEmail },
+      });
+      return record.id;
+    }
+
+    const byEmail = await prisma.customer.findFirst({
+      where: { storeId: ctx.store.id, email },
+    });
+
+    if (byEmail) {
+      const record = await prisma.customer.update({
+        where: { id: byEmail.id },
+        data: {
+          ...baseData,
+          ...(byEmail.wooId ? {} : { wooId: wooCustomerId }),
+        },
+      });
+      return record.id;
+    }
+
+    const record = await prisma.customer.create({
+      data: {
         ...baseData,
         wooId: wooCustomerId,
       },
@@ -119,6 +146,18 @@ async function ensureCustomer(ctx: SyncContext, sub: any) {
 
   const created = await prisma.customer.create({ data: baseData });
   return created.id;
+}
+
+async function resolveSafeEmail(storeId: string, id: number, email: string) {
+  const conflict = await prisma.customer.findFirst({
+    where: {
+      storeId,
+      email,
+      NOT: { id },
+    },
+    select: { id: true },
+  });
+  return conflict ? null : email;
 }
 
 function renderProgress(label: string, count: number) {

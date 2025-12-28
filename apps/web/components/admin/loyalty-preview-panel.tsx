@@ -1,151 +1,18 @@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-
-const previewCustomer = {
-  name: 'Sample customer',
-  points: 220,
-  nextRewardAt: 300,
-  level: 'Level 2',
-  lastEarned: 'Order $112 - 90 points',
-  nextRewardLabel: 'Free full-size add-on',
-};
-
-const highlights = [
-  {
-    title: 'No % discounts',
-    detail: 'Rewards come from existing free products + coupons.',
-  },
-  {
-    title: 'Visible progress',
-    detail: 'Points bar + level badge + next reward preview.',
-  },
-  {
-    title: 'Behavior first',
-    detail: 'Earn for repeat orders, quiz completion, and streaks.',
-  },
-];
-
-const loopSteps = [
-  { title: 'Earn', detail: 'Purchases, quiz, repeat orders' },
-  { title: 'Track', detail: 'Points balance + next reward' },
-  { title: 'Unlock', detail: 'Free products or free shipping' },
-  { title: 'Celebrate', detail: 'Simple email/SMS moments' },
-];
-
-const earnRules = [
-  { label: 'Purchases', detail: '$50 -> 40, $100 -> 90, $150 -> 140 points' },
-  { label: 'Quiz completion', detail: '+60 points one-time' },
-  { label: 'Repeat order', detail: '2nd order in 45 days -> +120 points' },
-  { label: 'Momentum', detail: '3rd order in 45 days -> +200 points' },
-];
-
-const streakIdeas = [
-  { label: 'Streak bonus', detail: 'Keep streak alive by ordering within 45 days.' },
-  { label: 'Streak rescue', detail: '1 grace reminder before streak resets.' },
-  { label: 'Double points weekend', detail: 'Limited-time tag-driven booster.' },
-];
-
-const rewardLadder = [
-  {
-    points: 120,
-    title: 'Free sample pack',
-    source: 'Woo product, price 0',
-    detail: 'Pure Dose / Bliss Dose / Focus Dose free sample pack.',
-  },
-  {
-    points: 240,
-    title: 'Free shipping',
-    source: 'Coupon: free-shipping',
-    detail: 'Free shipping on next order.',
-  },
-  {
-    points: 360,
-    title: 'Free gummy',
-    source: 'Coupon: freegummy',
-    detail: 'Free gummy add-on on next order.',
-  },
-  {
-    points: 500,
-    title: 'Buy 2 get 1 free',
-    source: 'Coupon: buy-2-gummies-and-get-1-free',
-    detail: 'Existing B2G1 coupon reward.',
-  },
-  {
-    points: 700,
-    title: 'Spend 200 get 3 free',
-    source: 'Coupon: spend-200-get-3-free-gummies',
-    detail: 'Existing spend threshold reward.',
-  },
-  {
-    points: 900,
-    title: 'Influencer Box',
-    source: 'Woo product, price 0',
-    detail: 'Use Influencer Box as a high-tier reward.',
-  },
-];
-
-const rewardVault = [
-  'Pure Dose Free Sample Pack - 10 Capsules',
-  'Bliss Dose Free Sample Pack - 10 Capsules',
-  'Focus Dose Free Sample Pack - 10 Capsules',
-  'Influencer Box',
-  'Coupon: free-shipping',
-  'Coupon: freegummy',
-  'Coupon: buy-2-gummies-and-get-1-free',
-  'Coupon: spend-200-get-3-free-gummies',
-];
-
-const messageIdeas = [
-  {
-    title: 'Unlocked reward',
-    body: 'You just unlocked a free sample pack. Pick your favorite.',
-    channel: 'Email + SMS',
-  },
-  {
-    title: 'Close to reward',
-    body: 'You are 30 points away from free shipping.',
-    channel: 'SMS, cooldown 10 days',
-  },
-  {
-    title: 'Streak bonus',
-    body: 'Nice streak! You earned +120 bonus points.',
-    channel: 'Email',
-  },
-];
-
-const surfaces = [
-  'Customer profile: points bar + next reward',
-  'Order confirmation: points earned recap',
-  'Post-purchase email: how close to next reward',
-  'GHL contact: points fields + reward tags',
-];
-
-const ideaBank = [
-  {
-    title: 'Collect all samples',
-    detail: 'Try all 3 free sample packs to unlock Influencer Box.',
-  },
-  {
-    title: 'Choose your reward',
-    detail: 'Let customer pick from the free sample packs list.',
-  },
-  {
-    title: 'Mystery reward',
-    detail: 'Random free sample pack when they hit a tier.',
-  },
-  {
-    title: 'Comeback boost',
-    detail: 'After 60 days idle, reward free shipping on return.',
-  },
-  {
-    title: 'Bundle quest',
-    detail: 'Unlock buy-2-get-1 coupon after 2 orders in 30 days.',
-  },
-  {
-    title: 'Momentum badge',
-    detail: 'Tag + badge when they place 2 orders in 45 days.',
-  },
-];
+import {
+  previewCustomer,
+  highlights,
+  loopSteps,
+  earnRules,
+  streakIdeas,
+  rewardLadder,
+  rewardVault,
+  messageIdeas,
+  surfaces,
+  interactionPlaybook,
+  ideaBank,
+} from '@/lib/loyalty-preview';
 
 export function LoyaltyPreviewPanel() {
   const percent = Math.min(
@@ -159,12 +26,6 @@ export function LoyaltyPreviewPanel() {
         <CardHeader className="gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge className="bg-purple-600 text-white shadow-sm dark:bg-purple-500">Admin</Badge>
-            <Badge
-              variant="outline"
-              className="border-[#dcc7ff] bg-[#f6efff] text-xs text-[#5b3ba4] dark:border-purple-900/50 dark:bg-purple-900/40 dark:text-purple-100"
-            >
-              Preview
-            </Badge>
           </div>
           <CardTitle className="text-2xl font-bold tracking-tight text-[#5b3ba4] dark:text-purple-100">
             Points + Rewards
@@ -376,6 +237,25 @@ export function LoyaltyPreviewPanel() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="border-[#eadcff] bg-white/70 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
+        <CardHeader>
+          <CardTitle className="text-lg text-[#5b3ba4] dark:text-purple-100">
+            Interaction playbook
+          </CardTitle>
+          <CardDescription>Tags that trigger GHL workflows.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-2 md:grid-cols-2">
+          {interactionPlaybook.map((item) => (
+            <div
+              key={item}
+              className="rounded-lg border border-[#eadcff] bg-white/80 px-3 py-2 text-sm text-slate-600 dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-200"
+            >
+              {item}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
       <Card className="border-[#eadcff] bg-white/70 shadow-sm dark:border-purple-900/40 dark:bg-purple-950/30">
         <CardHeader>

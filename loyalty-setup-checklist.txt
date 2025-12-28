@@ -1,0 +1,31 @@
+Loyalty pilot setup checklist
+
+GHL custom fields
+- points_balance
+- points_lifetime
+- points_to_next
+- next_reward_at
+- tier
+- last_reward
+
+GHL tags
+- points_earned_purchase
+- points_earned_quiz
+- points_earned_repeat
+- reward_unlocked_150
+- reward_unlocked_300
+- reward_unlocked_450
+- reward_unlocked_700
+- loyalty_nudge_email
+- loyalty_nudge_sms
+- loyalty_reward_unlocked
+
+Woo reward items (existing)
+- Free travel-size product
+- Free full-size add-on
+- Surprise bundle
+- VIP drop product
+
+Automation
+- Send unlock message (email + SMS)
+- Send “points away” reminder (cooldown 10 days)
