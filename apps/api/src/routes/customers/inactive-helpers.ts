@@ -11,6 +11,7 @@ import {
   computeChurnRisk,
 } from "./utils";
 import { buildIntentTags } from "../../lib/intent-normalizer";
+import { buildOrderHistory } from "./inactive-mappers";
 
 const ORDER_HISTORY_LIMIT: number | null = null;
 
@@ -94,18 +95,7 @@ export async function mapCustomersToRows(params: {
     const lastItems = mapOrderItemsWithCategories(lastOrder?.items ?? []);
     const topCategory = computeTopCategory(lastItems);
     const agg = aggMap.get(c.id);
-    const orderHistory = c.orders.map((order) => ({
-      orderId: order.id,
-      createdAt: order.createdAt?.toISOString() ?? null,
-      total: order.total != null ? round2(order.total) : null,
-      discountTotal: order.discountTotal != null ? round2(order.discountTotal) : null,
-      shippingTotal: order.shippingTotal != null ? round2(order.shippingTotal) : null,
-      taxTotal: order.taxTotal != null ? round2(order.taxTotal) : null,
-      coupons: (order.coupons || [])
-        .map((coupon) => coupon.coupon?.code)
-        .filter(Boolean),
-      items: mapOrderItemsWithCategories(order.items ?? []),
-    }));
+    const orderHistory = buildOrderHistory(c.orders);
 
     const lastDate = agg?.last ?? lastOrder?.createdAt ?? null;
     const metrics: IdleMetrics = {

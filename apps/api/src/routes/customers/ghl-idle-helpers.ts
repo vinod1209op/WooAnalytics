@@ -14,6 +14,8 @@ import {
 import { buildLoyaltyStats } from "../../lib/loyalty";
 import { extractCommerceFields, mapCustomFields, type GhlFieldDef } from "./ghl-utils";
 import { extractCategories, pickTopCategory } from "./ghl-product-utils";
+import { parseDate, daysSince } from "./date-utils";
+import { escapeCsv } from "./csv-utils";
 
 export type IdleRow = {
   contactId: string;
@@ -86,17 +88,6 @@ type IdleRowResult = {
   productCategories: string[];
   daysSinceLastOrder: number | null;
 };
-
-export function parseDate(value?: string | null) {
-  if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(+d)) return null;
-  return d;
-}
-
-export function daysSince(date: Date, nowMs: number) {
-  return round2((nowMs - date.getTime()) / (1000 * 60 * 60 * 24));
-}
 
 export function createIdleRow(params: {
   contact: GhlContact;
@@ -360,15 +351,6 @@ export function buildIdleCsv(rows: IdleRow[]) {
     "productsOrdered",
   ];
 
-  const escapeCsv = (val: any) => {
-    if (val === null || val === undefined) return "";
-    const str = String(val);
-    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
-  };
-
   const rowsCsv = rows.map((row) => {
     return [
       row.contactId,
@@ -386,9 +368,7 @@ export function buildIdleCsv(rows: IdleRow[]) {
       row.intent.improvementArea ?? "",
       row.productCategories.join(" | "),
       row.productsOrdered.join(" | "),
-    ]
-      .map(escapeCsv)
-      .join(",");
+    ].map(escapeCsv).join(",");
   });
 
   return [header.join(","), ...rowsCsv].join("\n");

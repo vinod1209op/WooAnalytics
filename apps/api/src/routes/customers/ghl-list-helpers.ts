@@ -15,6 +15,7 @@ import {
   pickLatestDate,
   preferHigherNumber,
 } from "./utils";
+import { escapeCsv } from "./csv-utils";
 
 type DbAgg = {
   ordersCount: number;
@@ -241,15 +242,6 @@ export function buildGhlCustomersCsv(rows: GhlCustomerRow[]) {
     "tags",
   ];
 
-  const escapeCsv = (val: any) => {
-    if (val === null || val === undefined) return "";
-    const str = String(val);
-    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
-  };
-
   const rowsCsv = rows.map((row) => {
     return [
       row.contactId,
@@ -270,9 +262,7 @@ export function buildGhlCustomersCsv(rows: GhlCustomerRow[]) {
       row.loyalty?.nextRewardAt ?? "",
       (row.productsOrdered || []).join(" | "),
       (row.tags || []).join(" | "),
-    ]
-      .map(escapeCsv)
-      .join(",");
+    ].map(escapeCsv).join(",");
   });
 
   return [header.join(","), ...rowsCsv].join("\n");

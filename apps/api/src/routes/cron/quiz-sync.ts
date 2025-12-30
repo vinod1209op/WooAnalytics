@@ -1,30 +1,13 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../../prisma";
-import {
-  upsertContactWithTags,
-  listCustomFields,
-  searchContacts,
-  fetchContact,
-  type SearchContactsResult,
-} from "../../lib/ghl";
+import { upsertContactWithTags } from "../../lib/ghl";
 import { normalizeFromCustomFields } from "../../lib/intent-normalizer";
-import { QUIZ_FIELD_IDS } from "../../lib/quiz-field-map";
-
-async function checkQuizFieldDrift(locationId: string) {
-  const defs = await listCustomFields(locationId);
-  const byId = new Map<string, any>();
-  const items = Array.isArray(defs?.customFields) ? defs.customFields : defs;
-  if (Array.isArray(items)) {
-    for (const f of items) {
-      if (f?.id) byId.set(String(f.id), f);
-    }
-  }
-  const missing: Array<{ id: string; name?: string }> = [];
-  Object.values(QUIZ_FIELD_IDS).forEach((id) => {
-    if (!byId.has(id)) missing.push({ id, name: undefined });
-  });
-  return { missing, defs };
-}
+import {
+  buildFieldDefsMap,
+  ensureContactFields,
+  fetchContactsByTag,
+  fetchQuizFieldDrift,
+} from "./quiz-sync-helpers";
 
 type SyncDeps = {
   requireCronAuth: (req: Request) => void;
@@ -94,19 +77,9 @@ export function registerQuizSyncRoute(router: Router, deps: SyncDeps) {
       let fieldDefsMap: Record<string, { name?: string; fieldKey?: string }> | undefined;
       if (checkDrift !== false) {
         try {
-          const driftResult = await checkQuizFieldDrift(locationId);
+          const driftResult = await fetchQuizFieldDrift(locationId);
           drift = { missing: driftResult.missing, inspected: true };
-          const defsArray = Array.isArray(driftResult?.defs?.customFields)
-            ? driftResult.defs.customFields
-            : Array.isArray(driftResult?.defs)
-            ? driftResult.defs
-            : [];
-          fieldDefsMap = {};
-          for (const d of defsArray) {
-            if (d?.id) {
-              fieldDefsMap[String(d.id)] = { name: d.name, fieldKey: d.fieldKey || d.key };
-            }
-          }
+          fieldDefsMap = buildFieldDefsMap(driftResult?.defs);
           if (driftResult.missing.length) {
             return res.status(428).json({
               error: "Quiz field drift detected",
@@ -118,24 +91,13 @@ export function registerQuizSyncRoute(router: Router, deps: SyncDeps) {
         }
       }
 
-  const errors: Array<{ contactId?: string; email?: string; reason: string }> = [];
-  const contacts: any[] = [];
-
-  let page = 1;
-  while (contacts.length < limit) {
-    const batch = await searchContacts({
-      locationId,
-      tag: tagFilter,
-      page,
-      pageLimit: Math.min(50, limit - contacts.length),
-    });
-    if (batch.contacts?.length) {
-      contacts.push(...batch.contacts);
-    }
-    if (!batch.nextPage || !batch.contacts?.length) break;
-    page = batch.nextPage;
-    await deps.sleep(200);
-  }
+      const errors: Array<{ contactId?: string; email?: string; reason: string }> = [];
+      const contacts = await fetchContactsByTag({
+        locationId,
+        tag: tagFilter,
+        limit,
+        sleep: deps.sleep,
+      });
 
       let processed = 0;
       let matched = 0;
@@ -164,15 +126,13 @@ export function registerQuizSyncRoute(router: Router, deps: SyncDeps) {
 
         // Hydrate full contact to get customFields (search often omits them)
         let fullContact = contact;
-        if (!Array.isArray(contact.customFields) || contact.customFields.length === 0) {
-          try {
-            fullContact = await fetchContact(contact.id);
-          } catch (err: any) {
-            const msg = err?.message || String(err);
-            errors.push({ contactId: contact.id, email: contact.email, reason: msg });
-            skipped += 1;
-            continue;
-          }
+        try {
+          fullContact = await ensureContactFields(contact);
+        } catch (err: any) {
+          const msg = err?.message || String(err);
+          errors.push({ contactId: contact.id, email: contact.email, reason: msg });
+          skipped += 1;
+          continue;
         }
 
         const normalized = normalizeFromCustomFields(fullContact.customFields || [], {
@@ -210,9 +170,9 @@ export function registerQuizSyncRoute(router: Router, deps: SyncDeps) {
               firstName: fullContact.firstName,
               lastName: fullContact.lastName,
               tags: mergedTags,
-            customFields: customFieldsPayload.length ? customFieldsPayload : undefined,
-            contactId: fullContact.id,
-          });
+              customFields: customFieldsPayload.length ? customFieldsPayload : undefined,
+              contactId: fullContact.id,
+            });
             tagged += 1;
           } catch (err: any) {
             const msg = err?.message || String(err);
@@ -255,7 +215,7 @@ export function registerQuizSyncRoute(router: Router, deps: SyncDeps) {
         }
       }
 
-      return res.json({
+      const response = {
         storeId,
         locationId,
         tag: tagFilter,
@@ -272,7 +232,7 @@ export function registerQuizSyncRoute(router: Router, deps: SyncDeps) {
         drift,
         primaryIntentFieldId: primaryIntentField || null,
         processedIds,
-      });
+      };
       Object.assign(lastStats, {
         ts: new Date().toISOString(),
         dryRun: isDryRun,
@@ -285,6 +245,7 @@ export function registerQuizSyncRoute(router: Router, deps: SyncDeps) {
         errors: errors.length,
         drift,
       });
+      return res.json(response);
     } catch (err: any) {
       console.error("POST /cron/sync-ghl-quiz-tags error:", err);
       return res.status(500).json({ error: err?.message ?? "Internal server error" });

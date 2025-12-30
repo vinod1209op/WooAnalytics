@@ -1,6 +1,6 @@
 import { prisma } from "../../prisma";
 import { round2 } from "../analytics/utils";
-import { mapOrderItemsWithCategories } from "./utils";
+import { mapDbOrders, summarizeOrders } from "./profile-db-mappers";
 
 export type LeadCouponSummary = {
   code: string;
@@ -112,88 +112,8 @@ export async function loadDbProfile(params: { storeId: string; customerId: numbe
     },
   });
 
-  const mappedOrders = orders.map((order) => {
-    const items = mapOrderItemsWithCategories(order.items ?? []);
-    const coupons =
-      order.coupons?.map((c) => c.coupon?.code).filter(Boolean) ?? [];
-    return {
-      id: order.id,
-      createdAt: order.createdAt?.toISOString() ?? null,
-      status: order.status ?? null,
-      currency: order.currency ?? null,
-      total: order.total != null ? round2(order.total) : null,
-      subtotal: order.subtotal != null ? round2(order.subtotal) : null,
-      discountTotal: order.discountTotal != null ? round2(order.discountTotal) : null,
-      shippingTotal: order.shippingTotal != null ? round2(order.shippingTotal) : null,
-      taxTotal: order.taxTotal != null ? round2(order.taxTotal) : null,
-      paymentMethod: order.paymentMethod ?? null,
-      shipping: {
-        city: order.shippingCity ?? null,
-        country: order.shippingCountry ?? null,
-      },
-      coupons,
-      items,
-    };
-  });
-
-  const productMap = new Map<
-    string,
-    { name: string; quantity: number; revenue: number; categories: string[] }
-  >();
-  const categoryMap = new Map<string, { name: string; quantity: number; revenue: number }>();
-  const couponSet = new Set<string>();
-
-  mappedOrders.forEach((order) => {
-    order.coupons.forEach((code) => couponSet.add(code));
-    order.items.forEach((item) => {
-      const key = item.productId != null ? String(item.productId) : item.name ?? "item";
-      const existing = productMap.get(key);
-      const revenue = item.lineTotal ?? 0;
-      if (existing) {
-        existing.quantity += item.quantity;
-        existing.revenue += revenue;
-        item.categories.forEach((cat) => {
-          if (!existing.categories.includes(cat)) existing.categories.push(cat);
-        });
-      } else {
-        productMap.set(key, {
-          name: item.name ?? "Item",
-          quantity: item.quantity,
-          revenue,
-          categories: [...item.categories],
-        });
-      }
-
-      item.categories.forEach((cat) => {
-        const catEntry = categoryMap.get(cat);
-        if (catEntry) {
-          catEntry.quantity += item.quantity;
-          catEntry.revenue += revenue;
-        } else {
-          categoryMap.set(cat, { name: cat, quantity: item.quantity, revenue });
-        }
-      });
-    });
-  });
-
-  const topProducts = Array.from(productMap.values())
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 6)
-    .map((p) => ({
-      name: p.name,
-      quantity: p.quantity,
-      revenue: round2(p.revenue),
-      categories: p.categories,
-    }));
-
-  const topCategories = Array.from(categoryMap.values())
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 6)
-    .map((c) => ({
-      name: c.name,
-      quantity: c.quantity,
-      revenue: round2(c.revenue),
-    }));
+  const mappedOrders = mapDbOrders(orders);
+  const { topProducts, topCategories, coupons } = summarizeOrders(mappedOrders);
 
   const ordersCount = aggregate._count._all ?? 0;
   const totalSpend = aggregate._sum.total ?? 0;
@@ -226,7 +146,7 @@ export async function loadDbProfile(params: { storeId: string; customerId: numbe
     orders: mappedOrders,
     topProducts,
     topCategories,
-    coupons: Array.from(couponSet.values()),
+    coupons,
   };
 }
 

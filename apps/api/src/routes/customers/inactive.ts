@@ -6,6 +6,7 @@ import {
   fetchCustomersPage,
   mapCustomersToRows,
 } from "./inactive-helpers";
+import { escapeCsv } from "./csv-utils";
 
 const INTENT_VALUES = new Set([
   "stress",
@@ -182,15 +183,6 @@ export function registerInactiveRoute(router: Router) {
           "tags",
         ];
 
-        const escapeCsv = (val: any) => {
-          if (val === null || val === undefined) return "";
-          const str = String(val);
-          if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-            return `"${str.replace(/"/g, '""')}"`;
-          }
-          return str;
-        };
-
         const rows = filtered.map((row) => {
           const items = row.lastItems
             .map(
@@ -226,9 +218,7 @@ export function registerInactiveRoute(router: Router) {
             row.offer?.offer ?? "",
             row.churnRisk ?? "",
             (row.tags || []).join("|"),
-          ]
-            .map(escapeCsv)
-            .join(",");
+          ].map(escapeCsv).join(",");
         });
 
         res.send([header.join(","), ...rows].join("\n"));
