@@ -181,6 +181,9 @@ model Order {
 
   paymentMethod  String?
 
+  // Optional billing contact for backfills/matching
+  billingEmail   String?
+
   // Optional geo fields for analytics
   shippingCountry String?
   shippingCity    String?
@@ -198,6 +201,7 @@ model Order {
   @@index([storeId, createdAt])
   @@index([storeId, status])
   @@index([storeId, customerId, createdAt])
+  @@index([storeId, billingEmail])
   @@map("orders")
 }
 

@@ -22,6 +22,10 @@ export async function upsertOrder(ctx: SyncContext, order: any) {
     createdAt: createdAt ?? new Date(),
     status: order.status ?? null,
     currency: order.currency ?? null,
+    billingEmail:
+      order.billing?.email?.toLowerCase() ||
+      order.customer_email?.toLowerCase() ||
+      null,
     total: safeNumber(order.total) ?? 0,
     subtotal: safeNumber(order.subtotal) ?? safeNumber(order.total),
     discountTotal: safeNumber(order.discount_total) ?? null,

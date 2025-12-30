@@ -159,6 +159,43 @@ export async function listCustomFields(locationId: string) {
   return handleGhlResponse(res, "GHL list custom fields");
 }
 
+export async function sendConversationEmail(params: {
+  contactId: string;
+  subject: string;
+  message: string;
+  locationId?: string | null;
+  emailFrom?: string | null;
+  fromName?: string | null;
+  emailTo?: string | null;
+}) {
+  if (!process.env.GHL_PIT) throw new Error("GHL_PIT missing");
+  const toHtml = (value: string) =>
+    value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\n/g, "<br />");
+  const body: Record<string, any> = {
+    type: "Email",
+    contactId: params.contactId,
+    subject: params.subject,
+    message: params.message,
+    html: toHtml(params.message),
+    text: params.message,
+  };
+  if (params.locationId) body.locationId = params.locationId;
+  if (params.emailFrom) body.emailFrom = params.emailFrom;
+  if (params.fromName) body.fromName = params.fromName;
+  if (params.emailTo) body.emailTo = params.emailTo;
+
+  const res = await fetchWithRetry(`${GHL_BASE}/conversations/messages`, {
+    method: "POST",
+    headers: defaultHeaders(),
+    body: JSON.stringify(body),
+  });
+  return handleGhlResponse(res, "GHL send email");
+}
+
 export type SearchContactsResult = {
   contacts: GhlContact[];
   total?: number;

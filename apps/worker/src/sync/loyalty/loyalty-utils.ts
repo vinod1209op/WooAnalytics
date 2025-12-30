@@ -8,11 +8,14 @@ function normalizeText(value?: string | null) {
     .trim();
 }
 
-function matchesTokens(text: string, tokens: string[]) {
+function matchesTokens(text: string, tokens: ReadonlyArray<string>) {
   return tokens.every((token) => text.includes(token));
 }
 
-export function findFieldId(defs: GhlFieldDef[], tokenSets: string[][]) {
+export function findFieldId(
+  defs: GhlFieldDef[],
+  tokenSets: ReadonlyArray<ReadonlyArray<string>>
+) {
   for (const tokens of tokenSets) {
     const match = defs.find((def) => {
       const text = `${normalizeText(def.name)} ${normalizeText(def.fieldKey)}`;

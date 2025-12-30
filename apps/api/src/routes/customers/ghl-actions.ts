@@ -3,7 +3,6 @@ import { fetchContact, upsertContactWithTags } from "../../lib/ghl";
 
 const ACTION_TAGS: Record<string, string> = {
   email_nudge: "loyalty_nudge_email",
-  sms_nudge: "loyalty_nudge_sms",
   reward_unlocked: "loyalty_reward_unlocked",
 };
 

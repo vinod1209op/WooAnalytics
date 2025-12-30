@@ -47,7 +47,7 @@ export function CustomerTable({
           cmp = dateVal(a.dateAdded) - dateVal(b.dateAdded);
           break;
         case 'lastActive':
-          cmp = dateVal(a.dateUpdated) - dateVal(b.dateUpdated);
+          cmp = dateVal(a.metrics?.lastOrderDate) - dateVal(b.metrics?.lastOrderDate);
           break;
         case 'orders':
           cmp =
@@ -217,7 +217,7 @@ export function CustomerTable({
                   {formatDate(row.dateAdded)}
                 </TableCell>
                 <TableCell className="text-sm text-slate-700 dark:text-slate-200">
-                  {formatDate(row.dateUpdated)}
+                  {formatDate(row.metrics?.lastOrderDate ?? row.dateUpdated)}
                 </TableCell>
                 <TableCell className="text-sm text-slate-700 dark:text-slate-200">
                   {row.metrics?.totalOrdersCount ?? '—'}

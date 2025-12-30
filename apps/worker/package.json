@@ -12,7 +12,8 @@
     "postinstall": "pnpm prisma:generate",
     "sync:full": "ts-node src/scripts/run-full-sync.ts",
     "sync:since": "ts-node src/scripts/run-since-sync.ts",
-    "sync:coupons": "ts-node src/scripts/run-coupon-sync.ts"
+    "sync:coupons": "ts-node src/scripts/run-coupon-sync.ts",
+    "sync:backfill-orders": "ts-node src/scripts/backfill-order-customers.ts"
   },
   "dependencies": {
     "@notionhq/client": "^5.4.0",

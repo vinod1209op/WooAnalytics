@@ -66,6 +66,25 @@ export async function listCustomFields(locationId: string): Promise<GhlFieldDef[
     .filter(Boolean) as GhlFieldDef[];
 }
 
+export async function createCustomField(params: {
+  locationId: string;
+  name: string;
+  dataType: "NUMERICAL" | "TEXT";
+  model?: "contact";
+}) {
+  const res = await fetchWithRetry(`${GHL_BASE}/locations/${params.locationId}/customFields`, {
+    method: "POST",
+    headers: defaultHeaders(),
+    body: JSON.stringify({
+      name: params.name,
+      dataType: params.dataType,
+      model: params.model ?? "contact",
+      placeholder: "",
+    }),
+  });
+  return handleGhlResponse(res, "GHL create custom field");
+}
+
 export async function searchContactsByQuery(params: {
   locationId: string;
   query: string;

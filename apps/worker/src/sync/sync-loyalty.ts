@@ -2,6 +2,7 @@ import { prisma } from "../db";
 import type { SyncContext, SyncStats } from "./types";
 import type { GhlContact } from "./loyalty/types";
 import {
+  createCustomField,
   listCustomFields,
   searchContactsByQuery,
   updateContactCustomFields,
@@ -14,6 +15,66 @@ import {
 
 const CUSTOMER_TAG = "customer";
 const REWARD_THRESHOLDS = [150, 300, 450, 700];
+
+const LOYALTY_FIELDS = [
+  {
+    key: "pointsBalance",
+    name: "Points Balance",
+    dataType: "NUMERICAL",
+    tokens: [
+      ["points", "balance"],
+      ["points", "current"],
+    ],
+  },
+  {
+    key: "pointsLifetime",
+    name: "Points Lifetime",
+    dataType: "NUMERICAL",
+    tokens: [
+      ["points", "lifetime"],
+      ["lifetime", "points"],
+    ],
+  },
+  {
+    key: "pointsToNext",
+    name: "Points To Next",
+    dataType: "NUMERICAL",
+    tokens: [
+      ["points", "next"],
+      ["points", "to", "next"],
+    ],
+  },
+  {
+    key: "nextRewardAt",
+    name: "Next Reward At",
+    dataType: "NUMERICAL",
+    tokens: [
+      ["next", "reward", "at"],
+      ["next", "reward"],
+      ["reward", "next"],
+    ],
+  },
+  {
+    key: "tier",
+    name: "Reward Tier",
+    dataType: "TEXT",
+    tokens: [
+      ["reward", "tier"],
+      ["loyalty", "tier"],
+      ["tier"],
+    ],
+  },
+  {
+    key: "lastReward",
+    name: "Last Reward At",
+    dataType: "NUMERICAL",
+    tokens: [
+      ["last", "reward", "at"],
+      ["last", "reward"],
+      ["reward", "last"],
+    ],
+  },
+] as const;
 
 export async function syncLoyalty(ctx: SyncContext): Promise<SyncStats> {
   const warnings: string[] = [];
@@ -39,36 +100,41 @@ export async function syncLoyalty(ctx: SyncContext): Promise<SyncStats> {
     };
   }
 
-  const defs = await listCustomFields(locationId);
-  const fieldIds = {
-    pointsBalance: findFieldId(defs, [
-      ["points", "balance"],
-      ["points", "current"],
-    ]),
-    pointsLifetime: findFieldId(defs, [
-      ["points", "lifetime"],
-      ["lifetime", "points"],
-    ]),
-    pointsToNext: findFieldId(defs, [
-      ["points", "next"],
-      ["points", "to", "next"],
-    ]),
-    nextRewardAt: findFieldId(defs, [
-      ["next", "reward"],
-      ["reward", "next"],
-    ]),
-    tier: findFieldId(defs, [["tier"]]),
-    lastReward: findFieldId(defs, [
-      ["last", "reward"],
-      ["reward", "last"],
-    ]),
-  };
+  let defs = await listCustomFields(locationId);
+  const resolveFieldIds = () =>
+    Object.fromEntries(
+      LOYALTY_FIELDS.map((field) => [
+        field.key,
+        findFieldId(defs, field.tokens),
+      ])
+    ) as Record<(typeof LOYALTY_FIELDS)[number]["key"], string | null>;
+  let fieldIds = resolveFieldIds();
 
-  const missingFieldIds = Object.entries(fieldIds)
+  let missingFieldKeys = Object.entries(fieldIds)
     .filter(([, id]) => !id)
     .map(([key]) => key);
-  if (missingFieldIds.length) {
-    warnings.push(`Missing GHL custom fields: ${missingFieldIds.join(", ")}`);
+  if (missingFieldKeys.length) {
+    for (const field of LOYALTY_FIELDS) {
+      if (!missingFieldKeys.includes(field.key)) continue;
+      try {
+        await createCustomField({
+          locationId,
+          name: field.name,
+          dataType: field.dataType,
+          model: "contact",
+        });
+      } catch (err: any) {
+        warnings.push(`Failed to create ${field.name}: ${err?.message ?? "unknown error"}`);
+      }
+    }
+    defs = await listCustomFields(locationId);
+    fieldIds = resolveFieldIds();
+    missingFieldKeys = Object.entries(fieldIds)
+      .filter(([, id]) => !id)
+      .map(([key]) => key);
+  }
+  if (missingFieldKeys.length) {
+    warnings.push(`Missing GHL custom fields: ${missingFieldKeys.join(", ")}`);
   }
 
   const contacts: GhlContact[] = [];

@@ -107,10 +107,10 @@ export function buildGhlCustomerRow(params: {
   const mergedLastOrderDate = pickLatestDate(commerce.lastOrderDate, dbAgg?.lastOrderAt);
   const mergedDateAdded = pickEarliestDate(contact.dateAdded ?? null, fallback?.createdAt);
   const mergedDateUpdated = pickLatestDate(
-    contact.dateUpdated ?? null,
-    fallback?.lastActiveAt,
     commerce.lastOrderDate,
-    dbAgg?.lastOrderAt
+    dbAgg?.lastOrderAt,
+    contact.dateUpdated ?? null,
+    fallback?.lastActiveAt
   );
 
   return {
