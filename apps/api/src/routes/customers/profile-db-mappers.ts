@@ -40,7 +40,10 @@ export type MappedOrder = {
 export function mapDbOrders(orders: DbOrder[]) {
   return orders.map((order) => {
     const items = mapOrderItemsWithCategories(order.items ?? []);
-    const coupons = order.coupons?.map((c) => c.coupon?.code).filter(Boolean) ?? [];
+    const coupons =
+      order.coupons
+        ?.map((c) => c.coupon?.code)
+        .filter((code): code is string => Boolean(code)) ?? [];
     return {
       id: order.id,
       createdAt: order.createdAt?.toISOString() ?? null,
