@@ -100,20 +100,6 @@ export function useGhlIdleCustomers({
   const [data, setData] = useState<GhlIdleResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const depsKey = JSON.stringify([
-    tag,
-    days,
-    page,
-    limit,
-    segment ?? null,
-    intent ?? null,
-    improvement ?? null,
-    category ?? null,
-    minOrders ?? null,
-    minSpend ?? null,
-    query ?? null,
-    storeId ?? null,
-  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -157,7 +143,20 @@ export function useGhlIdleCustomers({
     return () => {
       cancelled = true;
     };
-  }, [depsKey]);
+  }, [
+    tag,
+    days,
+    page,
+    limit,
+    segment,
+    intent,
+    improvement,
+    category,
+    minOrders,
+    minSpend,
+    query,
+    storeId,
+  ]);
 
   return { data, loading, error };
 }

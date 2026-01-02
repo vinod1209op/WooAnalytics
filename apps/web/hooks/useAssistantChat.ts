@@ -74,11 +74,12 @@ export function useAssistantChat() {
 
         const answer = data.answer ?? "No answer returned.";
         setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
-      } catch (e: any) {
+      } catch (e: unknown) {
+        const error = e instanceof Error ? e : null;
         const msg =
-          e?.name === "AbortError"
+          error?.name === "AbortError"
             ? "Request timed out. Please try again."
-            : e?.message || "Assistant request failed";
+            : error?.message || "Assistant request failed";
         setError(msg);
       } finally {
         setLoading(false);

@@ -10,35 +10,44 @@ type CountUpOptions = {
 
 export function useCountUp(target: number | null | undefined, options: CountUpOptions = {}) {
   const { durationMs = 900, startValue = 0, enabled = true } = options;
+  const normalizedTarget =
+    target == null || Number.isNaN(target) ? null : target;
   const [value, setValue] = useState<number | null>(
-    target == null || Number.isNaN(target) ? null : target
+    normalizedTarget
   );
-  const previousTarget = useRef<number | null>(null);
+  const previousTarget = useRef<number | null>(normalizedTarget);
 
   useEffect(() => {
     if (!enabled) {
-      setValue(target == null || Number.isNaN(target) ? null : target);
-      previousTarget.current = target == null || Number.isNaN(target) ? null : target;
+      previousTarget.current = normalizedTarget;
       return;
     }
 
-    if (target == null || Number.isNaN(target)) {
-      setValue(null);
+    let raf = 0;
+    const schedule = (next: number | null) => {
+      raf = requestAnimationFrame(() => setValue(next));
+    };
+
+    if (normalizedTarget == null) {
+      schedule(null);
       previousTarget.current = null;
-      return;
+      return () => {
+        if (raf) cancelAnimationFrame(raf);
+      };
     }
 
     const from = previousTarget.current ?? startValue;
-    const to = target;
+    const to = normalizedTarget;
     if (from === to) {
-      setValue(to);
+      schedule(to);
       previousTarget.current = to;
-      return;
+      return () => {
+        if (raf) cancelAnimationFrame(raf);
+      };
     }
 
     previousTarget.current = to;
     const start = performance.now();
-    let raf = 0;
 
     const tick = (now: number) => {
       const elapsed = now - start;
@@ -54,7 +63,7 @@ export function useCountUp(target: number | null | undefined, options: CountUpOp
     return () => {
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [durationMs, enabled, startValue, target]);
+  }, [durationMs, enabled, startValue, normalizedTarget]);
 
-  return value;
+  return enabled ? value : normalizedTarget;
 }

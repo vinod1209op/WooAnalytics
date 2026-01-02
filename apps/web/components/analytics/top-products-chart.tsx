@@ -36,7 +36,7 @@ export function TopProductsChart({ data, loading, error }: Props) {
             tick={{ fontSize: 12 }}
           />
           <Tooltip
-            formatter={(value, name, props) => {
+            formatter={(value, name) => {
               if (name === "revenue") return [fmtMoney(value as number), "Revenue"];
               if (name === "units") return [value, "Units"];
               return [value, name];

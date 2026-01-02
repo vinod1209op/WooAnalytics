@@ -69,7 +69,7 @@ export async function getJson<T>(
     let detail = '';
     try {
       detail = await res.text();
-    } catch (e) {
+    } catch {
       // ignore
     }
     throw new Error(

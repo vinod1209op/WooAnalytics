@@ -11,6 +11,40 @@ import { formatDate, formatMoney, formatPoints, formatPhone, nameFromEmail } fro
 type SortKey = 'name' | 'email' | 'lastOrder' | 'daysIdle' | 'spend' | 'risk' | 'segment';
 type SortDir = 'asc' | 'desc';
 
+type SortControlProps = {
+  columnKey: SortKey;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onSort: (key: SortKey, dir: SortDir) => void;
+};
+
+function SortControl({ columnKey, sortKey, sortDir, onSort }: SortControlProps) {
+  return (
+    <span className="ml-1 inline-flex flex-col leading-none">
+      <button
+        type="button"
+        aria-label={`Sort ${columnKey} ascending`}
+        onClick={() => onSort(columnKey, 'asc')}
+        className={`text-[10px] ${
+          sortKey === columnKey && sortDir === 'asc' ? 'text-[#5b3ba4]' : 'text-slate-400'
+        }`}
+      >
+        ▲
+      </button>
+      <button
+        type="button"
+        aria-label={`Sort ${columnKey} descending`}
+        onClick={() => onSort(columnKey, 'desc')}
+        className={`text-[10px] ${
+          sortKey === columnKey && sortDir === 'desc' ? 'text-[#5b3ba4]' : 'text-slate-400'
+        }`}
+      >
+        ▼
+      </button>
+    </span>
+  );
+}
+
 export function IdleCustomerTable({
   rows,
   loading,
@@ -76,35 +110,6 @@ export function IdleCustomerTable({
     setSortDir(dir);
   };
 
-  const SortControl = ({ columnKey }: { columnKey: SortKey }) => (
-    <span className="ml-1 inline-flex flex-col leading-none">
-      <button
-        type="button"
-        aria-label={`Sort ${columnKey} ascending`}
-        onClick={() => setSort(columnKey, 'asc')}
-        className={`text-[10px] ${
-          sortKey === columnKey && sortDir === 'asc'
-            ? 'text-[#5b3ba4]'
-            : 'text-slate-400'
-        }`}
-      >
-        ▲
-      </button>
-      <button
-        type="button"
-        aria-label={`Sort ${columnKey} descending`}
-        onClick={() => setSort(columnKey, 'desc')}
-        className={`text-[10px] ${
-          sortKey === columnKey && sortDir === 'desc'
-            ? 'text-[#5b3ba4]'
-            : 'text-slate-400'
-        }`}
-      >
-        ▼
-      </button>
-    </span>
-  );
-
   return (
     <Table>
       <TableHeader className="bg-[#f7f1ff]">
@@ -115,43 +120,43 @@ export function IdleCustomerTable({
           <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
               Name
-              <SortControl columnKey="name" />
+              <SortControl columnKey="name" sortKey={sortKey} sortDir={sortDir} onSort={setSort} />
             </div>
           </TableHead>
           <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
               Email
-              <SortControl columnKey="email" />
+              <SortControl columnKey="email" sortKey={sortKey} sortDir={sortDir} onSort={setSort} />
             </div>
           </TableHead>
           <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
               Last order
-              <SortControl columnKey="lastOrder" />
+              <SortControl columnKey="lastOrder" sortKey={sortKey} sortDir={sortDir} onSort={setSort} />
             </div>
           </TableHead>
           <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
               Days idle
-              <SortControl columnKey="daysIdle" />
+              <SortControl columnKey="daysIdle" sortKey={sortKey} sortDir={sortDir} onSort={setSort} />
             </div>
           </TableHead>
           <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
               Spend
-              <SortControl columnKey="spend" />
+              <SortControl columnKey="spend" sortKey={sortKey} sortDir={sortDir} onSort={setSort} />
             </div>
           </TableHead>
           <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
               Risk
-              <SortControl columnKey="risk" />
+              <SortControl columnKey="risk" sortKey={sortKey} sortDir={sortDir} onSort={setSort} />
             </div>
           </TableHead>
           <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
               Segment
-              <SortControl columnKey="segment" />
+              <SortControl columnKey="segment" sortKey={sortKey} sortDir={sortDir} onSort={setSort} />
             </div>
           </TableHead>
           <TableHead className="text-right text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">

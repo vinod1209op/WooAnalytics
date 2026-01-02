@@ -6,7 +6,6 @@ import { buildFilterParams, getJson } from '@/lib/api';
 
 type PeakResponse = { peakRevenueDay: { date: string; revenue: number; orders: number; aov: number } | null };
 type AnomaliesResponse = { anomalies: { date: string; revenue: number; orders: number; revenueZ: number; ordersZ: number }[] };
-type RetentionHighlights = { best: { cohortMonth: string; periodMonth: number; retentionRate: number; customersInCohort: number } | null; worst: { cohortMonth: string; periodMonth: number; retentionRate: number; customersInCohort: number } | null };
 type RepeatResponse = { last30: { rate: number }; last60: { rate: number }; last90: { rate: number }; last120: { rate: number } };
 type HealthResponse = {
   refundRatePct: number;
@@ -39,7 +38,6 @@ export function InsightsCards({ storeId, filter }: { storeId: string; filter: Fi
   const [loading, setLoading] = useState(false);
   const [peak, setPeak] = useState<PeakResponse['peakRevenueDay'] | null>(null);
   const [anomalyCount, setAnomalyCount] = useState<number>(0);
-  const [retention, setRetention] = useState<RetentionHighlights | null>(null);
   const [repeatRates, setRepeatRates] = useState<{ r30: number; r60: number; r90: number; r120: number }>({ r30: 0, r60: 0, r90: 0, r120: 0 });
   const [health, setHealth] = useState<HealthResponse | null>(null);
 
@@ -50,17 +48,15 @@ export function InsightsCards({ storeId, filter }: { storeId: string; filter: Fi
       try {
         const params = buildFilterParams(filter, storeId);
         // peaks
-        const [peakRes, anomaliesRes, retentionRes, repeatRes, healthRes] = await Promise.all([
+        const [peakRes, anomaliesRes, repeatRes, healthRes] = await Promise.all([
           getJson<PeakResponse>('/analytics/peaks', new URLSearchParams(params)),
           getJson<AnomaliesResponse>('/analytics/anomalies', new URLSearchParams({ storeId })),
-          getJson<RetentionHighlights>('/analytics/retention/highlights', new URLSearchParams({ storeId })),
           getJson<RepeatResponse>('/analytics/repeat-purchase', new URLSearchParams({ storeId })),
           getJson<HealthResponse>('/analytics/health-ratios', new URLSearchParams(params)),
         ]);
         if (cancelled) return;
         setPeak(peakRes.peakRevenueDay);
         setAnomalyCount(anomaliesRes.anomalies?.length ?? 0);
-        setRetention(retentionRes);
         setRepeatRates({
           r30: repeatRes.last30?.rate ?? 0,
           r60: repeatRes.last60?.rate ?? 0,
@@ -68,11 +64,10 @@ export function InsightsCards({ storeId, filter }: { storeId: string; filter: Fi
           r120: repeatRes.last120?.rate ?? 0,
         });
         setHealth(healthRes);
-      } catch (err) {
+      } catch {
         if (!cancelled) {
           setPeak(null);
           setAnomalyCount(0);
-          setRetention(null);
           setRepeatRates({ r30: 0, r60: 0, r90: 0, r120: 0 });
           setHealth(null);
         }

@@ -63,7 +63,7 @@ export type CustomerProfile = {
     quantity: number;
     revenue: number | null;
   }>;
-  customFields?: Array<{ id: string; name?: string; fieldKey?: string; value: any }>;
+  customFields?: Array<{ id: string; name?: string; fieldKey?: string; value: unknown }>;
   db?: null | {
     customer: {
       id: number;

@@ -112,43 +112,44 @@ export default function IdleCustomersPage() {
     }
   }, [copied]);
 
-  useEffect(() => {
-    if (!searchOpen) {
-      setSearchInput('');
-      setSearchQuery('');
-      return;
-    }
-    const timer = setTimeout(() => {
-      setSearchQuery(searchInput.trim());
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [searchInput, searchOpen]);
-
-  useEffect(() => {
-    if (view === 'all') {
+  const handleViewChange = (nextView: ViewMode) => {
+    setView(nextView);
+    if (nextView === 'all') {
       setAllPage(1);
     } else {
       setIdlePage(1);
     }
-  }, [searchQuery, view]);
+  };
+
+  const handleToggleSearch = () => {
+    setSearchOpen((prev) => {
+      const next = !prev;
+      if (!next) {
+        setSearchInput('');
+        setSearchQuery('');
+        if (view === 'all') {
+          setAllPage(1);
+        } else {
+          setIdlePage(1);
+        }
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
-    if (view === 'all') {
-      setAllPage(1);
-    }
-  }, [allJoinedDays, allActiveDays, allMinOrders, allMinSpend, view]);
-
-  useEffect(() => {
-    if (view === 'all') {
-      setAllPage(1);
-    }
-  }, [allIntent, allImprovement, allCategory, view]);
-
-  useEffect(() => {
-    if (view === 'idle') {
-      setIdlePage(1);
-    }
-  }, [idleMinOrders, idleMinSpend, view]);
+    if (!searchOpen) return;
+    const timer = setTimeout(() => {
+      const nextQuery = searchInput.trim();
+      setSearchQuery(nextQuery);
+      if (view === 'all') {
+        setAllPage(1);
+      } else {
+        setIdlePage(1);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput, searchOpen, view]);
 
   const allCsvUrl = useMemo(() => {
     const params = new URLSearchParams({
@@ -319,9 +320,9 @@ export default function IdleCustomersPage() {
     <div className="space-y-6">
       <CustomersHeader
         view={view}
-        onViewChange={setView}
+        onViewChange={handleViewChange}
         searchOpen={searchOpen}
-        onToggleSearch={() => setSearchOpen((prev) => !prev)}
+        onToggleSearch={handleToggleSearch}
         searchInput={searchInput}
         onSearchInputChange={setSearchInput}
         copied={copied}

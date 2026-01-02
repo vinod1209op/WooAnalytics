@@ -268,18 +268,19 @@ export default function CustomerProfilePage() {
     });
   }
 
-  const routineCue = getMessagingValue(data?.customer?.rawQuizAnswers ?? null, 'routine');
-  const stressCue = getMessagingValue(data?.customer?.rawQuizAnswers ?? null, 'stressCoping');
+  const customer = data?.customer ?? null;
+  const routineCue = getMessagingValue(customer?.rawQuizAnswers ?? null, 'routine');
+  const stressCue = getMessagingValue(customer?.rawQuizAnswers ?? null, 'stressCoping');
   const topProductName = topProducts?.[0]?.name ?? null;
   const topCategoryName = topCategories?.[0]?.name ?? null;
 
   const draftEmail = useMemo(() => {
-    if (!data?.customer) return { subject: '', body: '' };
+    if (!customer) return { subject: '', body: '' };
     return buildEmailDraft({
-      name: data.customer.name,
-      email: data.customer.email ?? null,
-      improvementArea: data.customer.intent?.improvementArea ?? null,
-      mentalState: data.customer.intent?.mentalState ?? null,
+      name: customer.name,
+      email: customer.email ?? null,
+      improvementArea: customer.intent?.improvementArea ?? null,
+      mentalState: customer.intent?.mentalState ?? null,
       routine: routineCue,
       stressCoping: stressCue,
       pointsBalance,
@@ -291,11 +292,7 @@ export default function CustomerProfilePage() {
       topCategory: topCategoryName,
     });
   }, [
-    data?.customer?.id,
-    data?.customer?.email,
-    data?.customer?.name,
-    data?.customer?.intent?.improvementArea,
-    data?.customer?.intent?.mentalState,
+    customer,
     routineCue,
     stressCue,
     pointsBalance,

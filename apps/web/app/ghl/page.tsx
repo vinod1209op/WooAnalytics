@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useStore } from '@/providers/store-provider';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +27,7 @@ const inputClass =
   'rounded-xl border-[#d9c7f5] bg-white text-[#5b3ba4] shadow-sm dark:border-purple-900/50 dark:bg-purple-950/50 dark:text-purple-50';
 
 export default function GhlPage() {
-  const { store, loading: storeLoading } = useStore();
+  const { store } = useStore();
   const [locationId, setLocationId] = useState('');
   const [tagQuery, setTagQuery] = useState('quiz submitted');
   const [limit, setLimit] = useState('1');

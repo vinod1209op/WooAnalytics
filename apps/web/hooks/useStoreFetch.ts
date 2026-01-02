@@ -16,6 +16,7 @@ export function useStoreFetch<T>({ path, searchParams, enabled = true }: Fetcher
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const searchKey = searchParams ? searchParams.toString() : '';
 
   useEffect(() => {
     if (!enabled) return;
@@ -29,7 +30,7 @@ export function useStoreFetch<T>({ path, searchParams, enabled = true }: Fetcher
     }
 
     let cancelled = false;
-    const params = new URLSearchParams(searchParams ?? {});
+    const params = new URLSearchParams(searchKey);
     params.set("storeId", store.id);
 
     (async () => {
@@ -58,7 +59,7 @@ export function useStoreFetch<T>({ path, searchParams, enabled = true }: Fetcher
     return () => {
       cancelled = true;
     };
-  }, [enabled, loadingStore, path, searchParams?.toString(), store?.id, storeError]);
+  }, [enabled, loadingStore, path, searchKey, store?.id, storeError]);
 
   return {
     data,

@@ -73,10 +73,11 @@ export async function GET(req: Request) {
 
     const result = await snapshotRes.json();
     return NextResponse.json({ ok: true, snapshot: result });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("cron/notion-kpi error:", err);
+    const message = err instanceof Error ? err.message : "Snapshot failed";
     return NextResponse.json(
-      { error: err?.message ?? "Snapshot failed" },
+      { error: message },
       { status: 500 }
     );
   }

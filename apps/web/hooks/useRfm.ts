@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useMemo } from "react";
 import type { FilterState } from "@/components/filters/filter-bar";
 import { RfmRow } from "@/types/rfm";
 import { RfmHeatmapCell } from "@/types/rfmCell";

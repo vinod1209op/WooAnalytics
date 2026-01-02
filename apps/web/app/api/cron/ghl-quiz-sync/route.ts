@@ -44,18 +44,19 @@ export async function POST(req: Request) {
     });
 
     const text = await res.text();
-    let payload: any = { raw: text };
+    let payload: { raw: string } | Record<string, unknown> = { raw: text };
     try {
-      payload = JSON.parse(text);
+      payload = JSON.parse(text) as Record<string, unknown>;
     } catch {
       payload = { raw: text };
     }
 
     return NextResponse.json(payload, { status: res.status });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("api/cron/ghl-quiz-sync error:", err);
+    const message = err instanceof Error ? err.message : "Request failed";
     return NextResponse.json(
-      { error: err?.message ?? "Request failed" },
+      { error: message },
       { status: 500 }
     );
   }
