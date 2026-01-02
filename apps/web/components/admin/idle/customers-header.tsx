@@ -55,19 +55,29 @@ export function CustomersHeader({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="rounded-xl border border-[#e8dcff] bg-white/70 p-1 shadow-sm dark:border-purple-900/50 dark:bg-purple-950/40">
+          <div className="rounded-2xl border border-[#d9c7f5] bg-white/80 p-1.5 shadow-sm dark:border-purple-900/50 dark:bg-purple-950/40">
             <Button
               size="sm"
-              variant={view === 'all' ? 'default' : 'ghost'}
-              className="rounded-lg px-4"
+              variant="ghost"
+              className={[
+                'rounded-lg px-4',
+                view === 'all'
+                  ? 'bg-[#6f4bb3] text-white hover:bg-[#6f4bb3]'
+                  : 'text-[#5b3ba4] hover:bg-[#f0e5ff] dark:text-purple-100 dark:hover:bg-purple-900/60',
+              ].join(' ')}
               onClick={() => onViewChange('all')}
             >
               All customers
             </Button>
             <Button
               size="sm"
-              variant={view === 'idle' ? 'default' : 'ghost'}
-              className="rounded-lg px-4"
+              variant="ghost"
+              className={[
+                'rounded-lg px-4',
+                view === 'idle'
+                  ? 'bg-[#6f4bb3] text-white hover:bg-[#6f4bb3]'
+                  : 'text-[#5b3ba4] hover:bg-[#f0e5ff] dark:text-purple-100 dark:hover:bg-purple-900/60',
+              ].join(' ')}
               onClick={() => onViewChange('idle')}
             >
               Idle customers
