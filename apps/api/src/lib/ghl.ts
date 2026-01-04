@@ -163,6 +163,7 @@ export async function sendConversationEmail(params: {
   contactId: string;
   subject: string;
   message: string;
+  html?: string | null;
   locationId?: string | null;
   emailFrom?: string | null;
   fromName?: string | null;
@@ -175,12 +176,13 @@ export async function sendConversationEmail(params: {
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/\n/g, "<br />");
+  const html = typeof params.html === "string" ? params.html.trim() : "";
   const body: Record<string, any> = {
     type: "Email",
     contactId: params.contactId,
     subject: params.subject,
     message: params.message,
-    html: toHtml(params.message),
+    html: html || toHtml(params.message),
     text: params.message,
   };
   if (params.locationId) body.locationId = params.locationId;

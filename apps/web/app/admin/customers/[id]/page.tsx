@@ -13,8 +13,14 @@ import { useCustomerProfile } from '@/hooks/useCustomerProfile';
 import { useCountUp } from '@/hooks/useCountUp';
 import { formatDate, formatMoney, formatPhone, formatPoints, nameFromEmail } from '@/lib/formatters';
 import { getLastReward, getNextReward } from '@/lib/loyalty';
+import { loyaltyRewardEmailTemplate } from '@/lib/email-templates/loyalty-reward';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE?.trim() || 'http://localhost:3001';
+const SHOP_URL = process.env.NEXT_PUBLIC_SHOP_URL?.trim() || 'https://mcrdse.com';
+const BRAND_NAME = process.env.NEXT_PUBLIC_BRAND_NAME?.trim() || 'MCRDSE';
+const BRAND_EMAIL = process.env.NEXT_PUBLIC_BRAND_EMAIL?.trim() || 'team@mcrdse.ca';
+const UNSUBSCRIBE_URL =
+  process.env.NEXT_PUBLIC_UNSUBSCRIBE_URL?.trim() || '{{email.unsubscribe_link}}';
 
 function formatDays(value: number | null | undefined) {
   if (value == null || Number.isNaN(value)) return '—';
@@ -32,6 +38,27 @@ function daysSinceDate(value?: string | null) {
 function formatLabel(value?: string | null) {
   if (!value) return '—';
   return value.replace(/_/g, ' ');
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function applyTemplate(template: string, values: Record<string, string>) {
+  return template.replace(/{{\s*([^}]+)\s*}}/g, (_match, token) => {
+    const key = String(token).trim();
+    return key in values ? values[key] : '';
+  });
+}
+
+function extractBody(html: string) {
+  const match = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  return match ? match[1].trim() : html;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -204,6 +231,10 @@ export default function CustomerProfilePage() {
     .sort((a, b) => (a.remainingSpend ?? 0) - (b.remainingSpend ?? 0));
   const leadCouponsPreview = leadCouponsToUnlock.slice(0, 6);
   const leadCoupon = leadCouponsToUnlock[0] ?? null;
+  const leadCouponLine =
+    leadCoupon?.remainingSpend != null
+      ? `You're ${formatMoney(leadCoupon.remainingSpend)} away from unlocking ${leadCoupon.code}.`
+      : '';
   const daysSinceLast = daysSinceDate(data?.metrics?.lastOrderDate ?? null);
   const campaignType =
     leadCoupon?.remainingSpend != null
@@ -221,6 +252,10 @@ export default function CustomerProfilePage() {
   const progress =
     displayPoints != null && nextRewardAt
       ? Math.min(100, Math.round((displayPoints / nextRewardAt) * 100))
+      : 0;
+  const progressPercent =
+    pointsBalance != null && nextRewardAt
+      ? Math.max(0, Math.min(100, Math.round((pointsBalance / nextRewardAt) * 100)))
       : 0;
   const avgOrderValue =
     dbStats?.avgOrderValue ??
@@ -304,6 +339,48 @@ export default function CustomerProfilePage() {
     topCategoryName,
   ]);
 
+  const htmlEmail = useMemo(() => {
+    if (!customer) return '';
+    const firstName =
+      customer.name?.split(' ')[0] || nameFromEmail(customer.email ?? '') || 'there';
+    const tokens: Record<string, string> = {
+      'contact.first_name': escapeHtml(firstName),
+      'contact.points_balance': escapeHtml(
+        pointsBalance != null ? String(pointsBalance) : '0'
+      ),
+      'contact.points_to_next': escapeHtml(
+        pointsToNext != null ? String(pointsToNext) : '0'
+      ),
+      'contact.next_reward_at': escapeHtml(
+        nextRewardAt != null ? String(nextRewardAt) : '0'
+      ),
+      next_reward_title: escapeHtml(nextReward?.title ?? 'your next reward'),
+      last_reward_title: escapeHtml(lastReward?.title ?? 'None yet'),
+      top_product: escapeHtml(topProductName ?? topCategoryName ?? 'our favorites'),
+      shop_url: escapeHtml(SHOP_URL),
+      lead_coupon_line: escapeHtml(leadCouponLine),
+      points_progress_percent: escapeHtml(String(progressPercent)),
+      'right_now.year': escapeHtml(String(new Date().getFullYear())),
+      'location.name': escapeHtml(BRAND_NAME),
+      'location.email': escapeHtml(BRAND_EMAIL),
+      'email.unsubscribe_link': escapeHtml(UNSUBSCRIBE_URL),
+    };
+    return applyTemplate(loyaltyRewardEmailTemplate, tokens);
+  }, [
+    customer,
+    pointsBalance,
+    pointsToNext,
+    nextRewardAt,
+    nextReward?.title,
+    lastReward?.title,
+    topProductName,
+    topCategoryName,
+    leadCouponLine,
+    progressPercent,
+  ]);
+
+  const htmlPreview = useMemo(() => extractBody(htmlEmail), [htmlEmail]);
+
   const effectiveSubject = emailSubject || draftEmail.subject;
   const effectiveBody = emailBody || draftEmail.body;
 
@@ -357,6 +434,7 @@ export default function CustomerProfilePage() {
     if (!data?.customer?.id) return;
     const subject = effectiveSubject.trim();
     const message = effectiveBody.trim();
+    const html = htmlEmail.trim();
     if (!subject || !message) {
       setEmailError('Subject and message are required.');
       return;
@@ -367,7 +445,7 @@ export default function CustomerProfilePage() {
       const res = await fetch(`${API_BASE}/customers/ghl-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contactId: data.customer.id, subject, message }),
+        body: JSON.stringify({ contactId: data.customer.id, subject, message, html }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -627,6 +705,17 @@ export default function CustomerProfilePage() {
                       className="mt-2 w-full rounded-xl border border-[#d9c7f5] bg-white p-3 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#b694f6] dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100"
                       placeholder="Type your message"
                     />
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wide text-slate-500">
+                      Preview
+                    </div>
+                    <div className="mt-2 overflow-hidden rounded-xl border border-[#d9c7f5] bg-white shadow-sm dark:border-purple-900/40 dark:bg-purple-950/40">
+                      <div
+                        className="max-h-[420px] overflow-auto"
+                        dangerouslySetInnerHTML={{ __html: htmlPreview }}
+                      />
+                    </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button

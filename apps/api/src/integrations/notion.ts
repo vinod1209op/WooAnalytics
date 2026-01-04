@@ -1,4 +1,4 @@
-import { Client } from '@notionhq/client';
+import { Client, isFullDatabase } from '@notionhq/client';
 
 type KpiPeriod = {
   revenue: number;
@@ -189,7 +189,7 @@ export async function createKpiSnapshot(options: SnapshotOptions) {
   };
 
   const db = await notion.databases.retrieve({ database_id: databaseId });
-  const dbProps = db.properties ?? {};
+  const dbProps = isFullDatabase(db) ? db.properties : {};
 
   const missingNumberProps: Record<string, any> = {};
   const numberProps = { ...baseNumbers, ...prevNumbers };
@@ -212,9 +212,12 @@ export async function createKpiSnapshot(options: SnapshotOptions) {
   let schemaUpdated = false;
   if (Object.keys(missingNumberProps).length > 0 || Object.keys(missingTextProps).length > 0) {
     try {
-      await notion.databases.update({
-        database_id: databaseId,
-        properties: { ...missingNumberProps, ...missingTextProps },
+      await notion.request({
+        path: `databases/${databaseId}`,
+        method: 'PATCH',
+        body: {
+          properties: { ...missingNumberProps, ...missingTextProps },
+        },
       });
       schemaUpdated = true;
     } catch (err) {

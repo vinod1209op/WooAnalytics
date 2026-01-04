@@ -136,6 +136,7 @@ ${JSON.stringify(payload)}`;
       if (!subject || !message) {
         return res.status(400).json({ error: "subject and message are required" });
       }
+      const html = typeof req.body?.html === "string" ? req.body.html.trim() : "";
 
       const contact = await fetchContact(contactId);
       if (!contact?.email) {
@@ -155,6 +156,7 @@ ${JSON.stringify(payload)}`;
         contactId,
         subject,
         message,
+        html,
         locationId,
         emailFrom,
         fromName,
