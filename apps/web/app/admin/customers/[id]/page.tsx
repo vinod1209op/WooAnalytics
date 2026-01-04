@@ -146,11 +146,11 @@ function buildEmailDraft(params: {
 
   if (params.topProduct) {
     lines.push(
-      `We noticed you loved ${params.topProduct}. It’s a great time to restock and keep that feel going.`
+      `Looks like ${params.topProduct} has been a favorite lately — perfect time to keep that rhythm going.`
     );
   } else if (params.topCategory) {
     lines.push(
-      `Looks like ${params.topCategory} has been a favorite. A simple restock keeps it going.`
+      `${params.topCategory} is still a favorite around here. A simple restock can keep it flowing.`
     );
   }
 
@@ -165,7 +165,9 @@ function buildEmailDraft(params: {
   }
 
   if (params.lastRewardTitle) {
-    lines.push(`Last reward: ${params.lastRewardTitle}. Next up: ${rewardName}.`);
+    lines.push(
+      `Last reward unlocked: ${params.lastRewardTitle}. Thanks for staying consistent.`
+    );
   }
 
   lines.push(pickPersonalLine({
@@ -696,19 +698,7 @@ export default function CustomerProfilePage() {
                   </div>
                   <div>
                     <div className="text-[11px] uppercase tracking-wide text-slate-500">
-                      Message
-                    </div>
-                    <textarea
-                      value={effectiveBody}
-                      onChange={(event) => setEmailBody(event.target.value)}
-                      rows={6}
-                      className="mt-2 w-full rounded-xl border border-[#d9c7f5] bg-white p-3 text-sm text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#b694f6] dark:border-purple-900/40 dark:bg-purple-950/40 dark:text-slate-100"
-                      placeholder="Type your message"
-                    />
-                  </div>
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-slate-500">
-                      Preview
+                      Email preview
                     </div>
                     <div className="mt-2 overflow-hidden rounded-xl border border-[#d9c7f5] bg-white shadow-sm dark:border-purple-900/40 dark:bg-purple-950/40">
                       <div

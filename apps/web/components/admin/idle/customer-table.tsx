@@ -53,7 +53,7 @@ export function CustomerTable({
   loading: boolean;
 }) {
   const hasData = rows.length > 0;
-  const columnCount = 9;
+  const columnCount = 8;
   const [sortKey, setSortKey] = useState<SortKey>('lastActive');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -149,9 +149,6 @@ export function CustomerTable({
               <SortControl columnKey="spend" sortKey={sortKey} sortDir={sortDir} onSort={setSort} />
             </div>
           </TableHead>
-          <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
-            Lead coupon
-          </TableHead>
           <TableHead className="text-right text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             Details
           </TableHead>
@@ -232,25 +229,6 @@ export function CustomerTable({
                 </TableCell>
                 <TableCell className="text-sm text-slate-700 dark:text-slate-200">
                   {formatMoney(row.metrics?.totalSpend ?? null)}
-                </TableCell>
-                <TableCell className="text-sm text-slate-700 dark:text-slate-200">
-                  {row.leadCouponUsed ? (
-                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100">
-                      Used
-                    </Badge>
-                  ) : row.leadCouponRemainingSpend != null ? (
-                    row.leadCouponRemainingSpend <= 0 ? (
-                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100">
-                        Eligible
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-slate-500">
-                        {formatMoney(row.leadCouponRemainingSpend)} to unlock
-                      </span>
-                    )
-                  ) : (
-                    '—'
-                  )}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">

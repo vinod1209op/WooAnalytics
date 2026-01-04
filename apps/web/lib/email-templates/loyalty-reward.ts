@@ -69,10 +69,10 @@ export const loyaltyRewardEmailTemplate = `<!doctype html>
             <tr>
               <td style="padding:6px 20px 12px; font-size:18px; line-height:1.25; font-family: Arial, Helvetica, sans-serif;">
                 <p style="margin:0 0 6px; text-align:left;">
-                  Last reward: <strong>{{last_reward_title}}</strong>
+                  Last reward unlocked: <strong>{{last_reward_title}}</strong>. Thank you for staying consistent.
                 </p>
                 <p style="margin:0; text-align:left;">
-                  Favorite lately: <strong>{{top_product}}</strong>
+                  Lately you’ve been enjoying <strong>{{top_product}}</strong> — if you want a restock, we’ve got you.
                 </p>
               </td>
             </tr>
