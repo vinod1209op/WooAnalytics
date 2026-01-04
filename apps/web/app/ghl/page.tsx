@@ -21,10 +21,20 @@ type SyncResult = {
   processedIds?: Array<{ contactId: string; email?: string }>;
 };
 
+type TemplatePreview = {
+  id: string;
+  name?: string | null;
+  subject?: string | null;
+  updatedAt?: string | null;
+  previewUrl?: string | null;
+};
+
 const labelClass =
   'text-xs font-semibold uppercase text-[#6f4bb3] dark:text-purple-200';
 const inputClass =
   'rounded-xl border-[#d9c7f5] bg-white text-[#5b3ba4] shadow-sm dark:border-purple-900/50 dark:bg-purple-950/50 dark:text-purple-50';
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE?.trim() || 'http://localhost:3001';
 
 export default function GhlPage() {
   const { store } = useStore();
@@ -37,6 +47,9 @@ export default function GhlPage() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SyncResult | null>(null);
+  const [templates, setTemplates] = useState<TemplatePreview[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
 
   const handleRun = async () => {
     setRunning(true);
@@ -70,6 +83,30 @@ export default function GhlPage() {
       setError(message);
     } finally {
       setRunning(false);
+    }
+  };
+
+  const fetchTemplates = async () => {
+    setTemplatesLoading(true);
+    setTemplatesError(null);
+    try {
+      const url = new URL(`${API_BASE}/customers/ghl-email-templates`);
+      if (locationId) {
+        url.searchParams.set('locationId', locationId);
+      }
+      url.searchParams.set('limit', '3');
+      const res = await fetch(url.toString(), { cache: 'no-store' });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.error || 'Failed to load templates');
+      }
+      setTemplates(Array.isArray(json?.templates) ? json.templates : []);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to load templates';
+      setTemplatesError(message);
+    } finally {
+      setTemplatesLoading(false);
     }
   };
 
@@ -221,6 +258,70 @@ export default function GhlPage() {
             ) : null}
           </div>
         )}
+      </Card>
+
+      <Card className="border-[#d9c7f5] bg-white/80 p-4 shadow-sm backdrop-blur dark:border-purple-900/50 dark:bg-purple-950/30">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className={labelClass}>Email templates</div>
+            <div className="text-sm text-slate-500">
+              Preview a few templates available in GHL.
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            className="rounded-xl border-[#d9c7f5] text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60"
+            onClick={fetchTemplates}
+            disabled={templatesLoading}
+          >
+            {templatesLoading ? 'Loading…' : 'Load templates'}
+          </Button>
+        </div>
+
+        {templatesError && (
+          <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+            {templatesError}
+          </div>
+        )}
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {templates.length ? (
+            templates.map((template) => (
+              <div
+                key={template.id}
+                className="rounded-xl border border-[#e9d5ff] bg-white/70 p-3 text-sm text-slate-700 shadow-sm dark:border-purple-900/60 dark:bg-purple-950/30 dark:text-slate-200"
+              >
+                <div className="font-semibold text-[#5b3ba4] dark:text-purple-100">
+                  {template.name || 'Untitled template'}
+                </div>
+                <div className="text-xs text-slate-500">
+                  {template.subject || template.name || 'No subject available'}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                  {template.updatedAt ? (
+                    <span>
+                      Updated: {new Date(template.updatedAt).toLocaleDateString()}
+                    </span>
+                  ) : null}
+                  {template.previewUrl ? (
+                    <a
+                      className="text-[#6f4bb3] hover:underline"
+                      href={template.previewUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Preview
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-sm text-slate-500">
+              No templates loaded yet.
+            </div>
+          )}
+        </div>
       </Card>
 
       <Card className="border-[#d9c7f5] bg-white/80 p-4 shadow-sm backdrop-blur dark:border-purple-900/50 dark:bg-purple-950/30">

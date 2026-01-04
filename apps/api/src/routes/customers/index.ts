@@ -8,6 +8,7 @@ import { registerGhlCustomersRoute } from "./ghl";
 import { registerGhlIdleCustomersRoute } from "./ghl-idle";
 import { registerGhlActionsRoute } from "./ghl-actions";
 import { registerGhlEmailRoute } from "./ghl-email";
+import { registerGhlEmailTemplatesRoute } from "./ghl-templates";
 
 const router = Router();
 
@@ -20,5 +21,6 @@ registerGhlCustomersRoute(router);
 registerGhlIdleCustomersRoute(router);
 registerGhlActionsRoute(router);
 registerGhlEmailRoute(router);
+registerGhlEmailTemplatesRoute(router);
 
 export default router;

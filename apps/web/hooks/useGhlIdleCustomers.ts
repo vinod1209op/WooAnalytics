@@ -37,6 +37,8 @@ export type GhlIdleCustomer = {
   topCategory: string | null;
   productCategories: string[];
   productsOrdered: string[];
+  leadCouponUsed?: boolean;
+  leadCouponRemainingSpend?: number | null;
   intent: {
     primaryIntent: string | null;
     mentalState: string | null;
@@ -83,6 +85,7 @@ export function useGhlIdleCustomers({
   minSpend,
   query,
   storeId,
+  leadCouponUsed,
 }: {
   tag: string;
   days: number;
@@ -96,6 +99,7 @@ export function useGhlIdleCustomers({
   minSpend?: number | null;
   query?: string;
   storeId?: string;
+  leadCouponUsed?: boolean;
 }) {
   const [data, setData] = useState<GhlIdleResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -116,6 +120,7 @@ export function useGhlIdleCustomers({
     if (minOrders != null) params.set('minOrders', String(minOrders));
     if (minSpend != null) params.set('minSpend', String(minSpend));
     if (query) params.set('query', query);
+    if (leadCouponUsed) params.set('leadCouponUsed', '1');
 
     (async () => {
       try {
@@ -156,6 +161,7 @@ export function useGhlIdleCustomers({
     minSpend,
     query,
     storeId,
+    leadCouponUsed,
   ]);
 
   return { data, loading, error };

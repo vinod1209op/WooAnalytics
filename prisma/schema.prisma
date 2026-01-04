@@ -242,12 +242,14 @@ model Coupon {
   dateExpires  DateTime?
   usageLimit   Int?
   usageCount   Int?
+  createdAt    DateTime @default(now())
 
   // Relations
   store   Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   orders  OrderCoupon[]
 
   @@unique([storeId, code], map: "coupons_store_code_uq")
+  @@index([storeId, createdAt])
   @@map("coupons")
 }
 

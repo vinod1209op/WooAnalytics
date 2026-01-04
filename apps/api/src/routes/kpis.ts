@@ -1,7 +1,7 @@
 // apps/api/routes/kpis.ts
 import { Router, Request, Response } from 'express';
 import { prisma } from '../prisma';
-import { parseDateRange } from './analytics/utils';
+import { parseDateRange, round2 } from './analytics/utils';
 
 const router = Router();
 
@@ -77,6 +77,15 @@ router.get('/', async(req: Request, res: Response) => {
 
         prevWhereOrders.coupons = whereOrders.coupons;
         }
+        const leadRateWhere = { ...whereOrders };
+        if (type === 'coupon') {
+          delete leadRateWhere.coupons;
+        }
+        const prevLeadRateWhere = { ...prevWhereOrders };
+        if (type === 'coupon') {
+          delete prevLeadRateWhere.coupons;
+        }
+
         // ----- 3) Run aggregates in parallel -----
         const [
           agg,
@@ -89,6 +98,10 @@ router.get('/', async(req: Request, res: Response) => {
           prevCustomers,
           prevRefundsAgg,
           prevNewCustomerGroups,
+          leadCouponRedeemed,
+          prevLeadCouponRedeemed,
+          leadCouponCreatedRows,
+          prevLeadCouponCreatedRows,
         ] = await Promise.all([
         prisma.order.aggregate({
             _count: { _all: true },
@@ -150,6 +163,36 @@ router.get('/', async(req: Request, res: Response) => {
           },
           _min: { createdAt: true },
         }),
+        prisma.orderCoupon.findMany({
+          where: {
+            coupon: { code: { startsWith: 'lead-' } },
+            order: leadRateWhere,
+          },
+          select: { coupon: { select: { code: true } } },
+        }),
+        prisma.orderCoupon.findMany({
+          where: {
+            coupon: { code: { startsWith: 'lead-' } },
+            order: prevLeadRateWhere,
+          },
+          select: { coupon: { select: { code: true } } },
+        }),
+        prisma.coupon.findMany({
+          where: {
+            storeId,
+            code: { startsWith: 'lead-' },
+            createdAt: { gte: fromDate, lt: endExclusive },
+          },
+          select: { id: true },
+        }),
+        prisma.coupon.findMany({
+          where: {
+            storeId,
+            code: { startsWith: 'lead-' },
+            createdAt: { gte: prevFrom, lt: prevEndExclusive },
+          },
+          select: { id: true },
+        }),
         ]);
 
         const orders = agg._count._all || 0;
@@ -190,6 +233,26 @@ router.get('/', async(req: Request, res: Response) => {
           const firstOrder = g._min.createdAt;
           return firstOrder >= prevFrom && firstOrder < prevEndExclusive;
         }).length;
+        const leadCouponRedeemedCount = new Set(
+          leadCouponRedeemed
+            .map((row) => row.coupon?.code)
+            .filter((code): code is string => !!code)
+        ).size;
+        const prevLeadCouponRedeemedCount = new Set(
+          prevLeadCouponRedeemed
+            .map((row) => row.coupon?.code)
+            .filter((code): code is string => !!code)
+        ).size;
+
+        const leadCouponCreated = leadCouponCreatedRows.length;
+        const prevLeadCouponCreated = prevLeadCouponCreatedRows.length;
+
+        const leadCouponRedemptionRate = leadCouponCreated
+          ? round2((leadCouponRedeemedCount / leadCouponCreated) * 100)
+          : null;
+        const leadCouponRedemptionRatePrev = prevLeadCouponCreated
+          ? round2((prevLeadCouponRedeemedCount / prevLeadCouponCreated) * 100)
+          : null;
 
         // ----- 4) Send payload -----
         res.json({
@@ -205,6 +268,8 @@ router.get('/', async(req: Request, res: Response) => {
         tax: Number(taxTotal.toFixed(2)),
         avgItemsPerOrder: Number(avgItemsPerOrder.toFixed(2)),
         newCustomers,
+        leadCouponRedemptionRate,
+        leadCouponRedemptionRatePrev,
         previous: {
           revenue: Number(prevRevenue.toFixed(2)),
           orders: prevOrders,

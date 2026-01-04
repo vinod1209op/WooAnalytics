@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { prisma } from "../../prisma";
 import { listCustomFields, searchContactsByQuery } from "../../lib/ghl";
 import { asLower, parsePositiveInt } from "./utils";
 import { buildFieldDefMap, normalizeFieldDefs } from "./ghl-utils";
@@ -63,6 +64,11 @@ export function registerGhlIdleCustomersRoute(router: Router) {
       const categoryFilter =
         typeof req.query.category === "string" && req.query.category.trim()
           ? req.query.category.trim().toLowerCase()
+          : null;
+      const leadCouponUsedFilter =
+        typeof req.query.leadCouponUsed === "string" &&
+        ["1", "true", "yes"].includes(req.query.leadCouponUsed.toLowerCase())
+          ? true
           : null;
 
       if (!locationId) {
@@ -147,12 +153,85 @@ export function registerGhlIdleCustomersRoute(router: Router) {
         searchPage += 1;
       }
 
-      const totalCount = filteredRows.length;
+      let leadMinSpendList: number[] = [];
+      const computeRemainingSpend = (totalSpend: number | null) => {
+        if (totalSpend == null || !leadMinSpendList.length) return null;
+        let remaining: number | null = null;
+        for (const minSpend of leadMinSpendList) {
+          const next = Math.max(minSpend - totalSpend, 0);
+          if (remaining == null || next < remaining) remaining = next;
+        }
+        return remaining != null ? Math.round(remaining * 100) / 100 : null;
+      };
+
+      if (storeId && filteredRows.length) {
+        const leadCouponMinSpends = await prisma.coupon.findMany({
+          where: { storeId, code: { startsWith: "lead-" }, minimumSpend: { not: null } },
+          select: { minimumSpend: true },
+        });
+        leadMinSpendList = leadCouponMinSpends
+          .map((row) => row.minimumSpend)
+          .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+
+        const emails = Array.from(
+          new Set(
+            filteredRows
+              .map((row) => row.email?.toLowerCase())
+              .filter(Boolean) as string[]
+          )
+        );
+        const dbCustomers = emails.length
+          ? await prisma.customer.findMany({
+              where: { storeId, email: { in: emails } },
+              select: { id: true, email: true },
+            })
+          : [];
+        const idByEmail = new Map(
+          dbCustomers.map((row) => [row.email.toLowerCase(), row.id])
+        );
+        const ids = dbCustomers.map((row) => row.id);
+        const leadUsedRows = ids.length
+          ? await prisma.order.findMany({
+              where: {
+                storeId,
+                customerId: { in: ids },
+                coupons: { some: { coupon: { code: { startsWith: "lead-" } } } },
+              },
+              select: { customerId: true },
+            })
+          : [];
+        const leadUsedIds = new Set(
+          leadUsedRows
+            .map((row) => row.customerId)
+            .filter((id): id is number => typeof id === "number")
+        );
+
+        filteredRows.forEach((row) => {
+          row.leadCouponRemainingSpend = computeRemainingSpend(row.metrics?.totalSpend ?? null);
+          const email = row.email?.toLowerCase();
+          const id = email ? idByEmail.get(email) : null;
+          row.leadCouponUsed = id ? leadUsedIds.has(id) : false;
+        });
+      }
+
+      const filteredByLead =
+        leadCouponUsedFilter && filteredRows.length
+          ? filteredRows.filter((row) => row.leadCouponUsed)
+          : filteredRows;
+
+      const totalCount = filteredByLead.length;
       const start = (page - 1) * limit;
-      const pagedRows = filteredRows.slice(start, start + limit);
+      const pagedRows = filteredByLead.slice(start, start + limit);
 
       if (storeId && pagedRows.length) {
         await enrichIdleRowsWithDb({ storeId, rows: pagedRows, nowMs });
+        if (leadMinSpendList.length) {
+          pagedRows.forEach((row) => {
+            row.leadCouponRemainingSpend = computeRemainingSpend(
+              row.metrics?.totalSpend ?? null
+            );
+          });
+        }
       }
 
       const wantCsv =

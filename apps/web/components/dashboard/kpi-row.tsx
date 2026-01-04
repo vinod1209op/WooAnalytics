@@ -6,8 +6,8 @@ import {
   LineChart as LineIcon,
   Package,
   Users,
-  Banknote,
   RotateCcw,
+  Tag,
   BadgePercent,
   Truck,
   Receipt,
@@ -30,6 +30,8 @@ export function KpiRow(kpis: KpiSummary) {
       positive,
     };
   };
+  const formatPercent = (value?: number | null) =>
+    value == null ? '—' : `${value.toFixed(1)}%`;
 
   return (
     <section className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
@@ -64,10 +66,13 @@ export function KpiRow(kpis: KpiSummary) {
         hint={pct(kpis.customers, prev?.customers)}
       />
       <KpiCard
-        icon={<Banknote className="h-5 w-5" />}
-        label="Net revenue"
-        value={fmtMoney(kpis.netRevenue)}
-        hint={pct(kpis.netRevenue, prev?.netRevenue)}
+        icon={<Tag className="h-5 w-5" />}
+        label="Lead coupons %"
+        value={formatPercent(kpis.leadCouponRedemptionRate)}
+        hint={pct(
+          kpis.leadCouponRedemptionRate ?? 0,
+          kpis.leadCouponRedemptionRatePrev ?? undefined
+        )}
       />
       <KpiCard
         icon={<RotateCcw className="h-5 w-5" />}

@@ -46,6 +46,8 @@ export type IdleRow = {
     lastRewardAt: number | null;
     tier: string | null;
   };
+  leadCouponUsed?: boolean;
+  leadCouponRemainingSpend?: number | null;
   segment: string | null;
   churnRisk: number | null;
   topCategory: string | null;

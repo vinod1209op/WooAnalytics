@@ -15,6 +15,7 @@ import { useNewVsReturning } from './useNewVsReturning';
 import { useTopProductsPerformance } from './useTopProductsPerformance';
 import { useRetentionCohorts } from './useRetentionCohorts';
 import { useTopCategoriesPerformance } from './useTopCategoriesPerformance';
+import { useLeadCoupons } from './useLeadCoupons';
 
 type UseAnalyticsChartsResult = {
   chartSlots: ChartId[];
@@ -35,6 +36,12 @@ export function useAnalyticsCharts(filter: FilterState): UseAnalyticsChartsResul
   const { products: topProducts, loading: topProductsLoading, error: topProductsError } = useTopProductsPerformance(filter);
   const { categories: topCategories, loading: topCategoriesLoading, error: topCategoriesError } = useTopCategoriesPerformance(filter);
   const { cohorts, loading: cohortsLoading, error: cohortsError } = useRetentionCohorts();
+  const {
+    summary: leadCouponsSummary,
+    points: leadCoupons,
+    loading: leadCouponsLoading,
+    error: leadCouponsError,
+  } = useLeadCoupons(filter);
 
   const [chartSlots, setChartSlotsState] = useState<ChartId[]>([
     'revenue_orders', // slot 1
@@ -82,6 +89,10 @@ export function useAnalyticsCharts(filter: FilterState): UseAnalyticsChartsResul
     cohorts,
     cohortsLoading,
     cohortsError,
+    leadCoupons,
+    leadCouponsSummary,
+    leadCouponsLoading,
+    leadCouponsError,
   };
 
   return { chartSlots, setChartSlots, chartContext };

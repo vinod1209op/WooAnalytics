@@ -73,6 +73,8 @@ export type GhlCustomerRow = {
     lastRewardAt: number | null;
     tier: string | null;
   };
+  leadCouponUsed?: boolean;
+  leadCouponRemainingSpend?: number | null;
   productsOrdered: string[] | null | undefined;
   intent: {
     primaryIntent: string | null;
@@ -167,6 +169,7 @@ export function applyGhlCustomerFilters(
     intentFilter: string | null;
     improvementFilter: string | null;
     categoryFilter: string | null;
+    leadCouponUsed: boolean | null;
   }
 ) {
   const nowMs = Date.now();
@@ -199,6 +202,9 @@ export function applyGhlCustomerFilters(
       if (!categories.some((cat) => cat.toLowerCase() === filters.categoryFilter)) {
         return false;
       }
+    }
+    if (filters.leadCouponUsed) {
+      if (!row.leadCouponUsed) return false;
     }
     if (joinedCutoff != null) {
       if (!row.dateAdded) return false;

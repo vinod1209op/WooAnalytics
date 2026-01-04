@@ -1,6 +1,7 @@
 'use client';
 
 import { Dispatch, SetStateAction } from 'react';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type FilterProps = {
@@ -18,6 +19,8 @@ type FilterProps = {
   setImprovement: Dispatch<SetStateAction<string | null>>;
   category: string | null;
   setCategory: Dispatch<SetStateAction<string | null>>;
+  leadCouponOnly: boolean;
+  setLeadCouponOnly: Dispatch<SetStateAction<boolean>>;
   categories: string[];
   resetCursor: () => void;
 };
@@ -82,6 +85,8 @@ export function AllCustomerFilters({
   setImprovement,
   category,
   setCategory,
+  leadCouponOnly,
+  setLeadCouponOnly,
   categories,
   resetCursor,
 }: FilterProps) {
@@ -227,6 +232,22 @@ export function AllCustomerFilters({
             ))}
           </SelectContent>
         </Select>
+
+        <Button
+          type="button"
+          variant={leadCouponOnly ? 'default' : 'outline'}
+          className={`rounded-xl border-[#d9c7f5] ${
+            leadCouponOnly
+              ? 'bg-[#6f4bb3] text-white hover:bg-[#5b3ba4]'
+              : 'text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60'
+          }`}
+          onClick={() => {
+            setLeadCouponOnly((prev) => !prev);
+            resetCursor();
+          }}
+        >
+          Has lead coupon
+        </Button>
       </div>
     </div>
   );

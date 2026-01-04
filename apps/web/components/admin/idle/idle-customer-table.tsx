@@ -53,7 +53,7 @@ export function IdleCustomerTable({
   loading: boolean;
 }) {
   const hasData = rows.length > 0;
-  const columnCount = 9;
+  const columnCount = 10;
   const [sortKey, setSortKey] = useState<SortKey>('lastOrder');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -148,6 +148,9 @@ export function IdleCustomerTable({
             </div>
           </TableHead>
           <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
+            Lead coupon
+          </TableHead>
+          <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#7a5bcf]">
             <div className="flex items-center">
               Risk
               <SortControl columnKey="risk" sortKey={sortKey} sortDir={sortDir} onSort={setSort} />
@@ -238,6 +241,25 @@ export function IdleCustomerTable({
                 <TableCell className="text-sm text-slate-700 dark:text-slate-200">
                   {formatMoney(
                     row.metrics?.totalSpend ?? row.metrics?.lastOrderValue ?? null
+                  )}
+                </TableCell>
+                <TableCell className="text-sm text-slate-700 dark:text-slate-200">
+                  {row.leadCouponUsed ? (
+                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100">
+                      Used
+                    </Badge>
+                  ) : row.leadCouponRemainingSpend != null ? (
+                    row.leadCouponRemainingSpend <= 0 ? (
+                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-100">
+                        Eligible
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-slate-500">
+                        {formatMoney(row.leadCouponRemainingSpend)} to unlock
+                      </span>
+                    )
+                  ) : (
+                    '—'
                   )}
                 </TableCell>
                 <TableCell className="text-sm text-slate-700 dark:text-slate-200">

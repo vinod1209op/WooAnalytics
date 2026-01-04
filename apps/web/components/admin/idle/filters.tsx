@@ -19,6 +19,8 @@ type FilterProps = {
   setMinOrders: Dispatch<SetStateAction<number | null>>;
   minSpend: number | null;
   setMinSpend: Dispatch<SetStateAction<number | null>>;
+  leadCouponOnly: boolean;
+  setLeadCouponOnly: Dispatch<SetStateAction<boolean>>;
   onCopyEmails: () => void;
   csvUrl: string;
   disableActions: boolean;
@@ -74,6 +76,8 @@ export function IdleFilters({
   setMinOrders,
   minSpend,
   setMinSpend,
+  leadCouponOnly,
+  setLeadCouponOnly,
   onCopyEmails,
   csvUrl,
   disableActions,
@@ -226,6 +230,22 @@ export function IdleFilters({
             ))}
           </SelectContent>
         </Select>
+
+        <Button
+          type="button"
+          variant={leadCouponOnly ? 'default' : 'outline'}
+          className={`rounded-xl border-[#d9c7f5] ${
+            leadCouponOnly
+              ? 'bg-[#6f4bb3] text-white hover:bg-[#5b3ba4]'
+              : 'text-[#5b3ba4] hover:bg-[#f0e5ff] dark:border-purple-900/50 dark:text-purple-100 dark:hover:bg-purple-900/60'
+          }`}
+          onClick={() => {
+            setLeadCouponOnly((prev) => !prev);
+            resetCursor();
+          }}
+        >
+          Has lead coupon
+        </Button>
 
         {showActions && (
           <>

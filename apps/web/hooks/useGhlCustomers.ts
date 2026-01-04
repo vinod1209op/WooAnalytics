@@ -44,6 +44,8 @@ export type GhlCustomer = {
   };
   productsOrdered?: string[];
   productCategories?: string[];
+  leadCouponUsed?: boolean;
+  leadCouponRemainingSpend?: number | null;
   intent?: {
     primaryIntent?: string | null;
     mentalState?: string | null;
@@ -60,6 +62,13 @@ type GhlCustomersResponse = {
   total: number;
   nextPage: number | null;
   categories?: string[];
+  leadCouponStats?: {
+    generated: number;
+    redeemed: number;
+    redeemedUses: number;
+    ordersUsing: number;
+    redemptionRate: number | null;
+  } | null;
   data: GhlCustomer[];
 };
 
@@ -75,6 +84,7 @@ export function useGhlCustomers({
   intent,
   improvement,
   category,
+  leadCouponUsed,
 }: {
   tag: string;
   page: number;
@@ -87,6 +97,7 @@ export function useGhlCustomers({
   intent?: string | null;
   improvement?: string | null;
   category?: string | null;
+  leadCouponUsed?: boolean;
 }) {
   const { store, loading: loadingStore, error: storeError } = useStore();
   const [data, setData] = useState<GhlCustomersResponse | null>(null);
@@ -110,6 +121,7 @@ export function useGhlCustomers({
     if (intent) params.set('intent', intent);
     if (improvement) params.set('improvement', improvement);
     if (category) params.set('category', category);
+    if (leadCouponUsed) params.set('leadCouponUsed', '1');
 
     (async () => {
       try {
@@ -151,6 +163,7 @@ export function useGhlCustomers({
     intent,
     improvement,
     category,
+    leadCouponUsed,
   ]);
 
   return { data, loading: loadingStore || loading, error: error ?? storeError ?? null };

@@ -12,6 +12,7 @@ import { NewVsReturningChart } from './new-vs-returning-chart';
 import { TopProductsChart } from './top-products-chart';
 import { CohortsChart } from './cohorts-chart';
 import { TopCategoriesChart } from './top-categories-chart';
+import { LeadCouponFunnelChart } from './lead-coupon-funnel-chart';
 import type { SalesPoint } from '@/types/sales';
 import type { SegmentPoint } from '@/types/segment';
 import type { RfmHeatmapCell } from '@/types/rfmCell';
@@ -24,6 +25,8 @@ import type {
   ShippingTaxPoint,
   NewVsReturningPoint,
   RetentionCohort,
+  LeadCouponPoint,
+  LeadCouponSummary,
 } from '@/types/analytics';
 import type { CategorySummary } from '@/types/category';
 
@@ -40,7 +43,8 @@ export type ChartId =
   | 'new_returning'
   | 'top_products'
   | 'top_categories'
-  | 'retention_cohorts';
+  | 'retention_cohorts'
+  | 'lead_coupons';
 
 export type ChartRegistryContext = {
   sales: SalesPoint[];
@@ -78,6 +82,10 @@ export type ChartRegistryContext = {
   cohorts: RetentionCohort[];
   cohortsLoading?: boolean;
   cohortsError?: string | null;
+  leadCoupons: LeadCouponPoint[];
+  leadCouponsSummary: LeadCouponSummary | null;
+  leadCouponsLoading?: boolean;
+  leadCouponsError?: string | null;
 };
 
 type ChartEntry = {
@@ -184,6 +192,19 @@ export const chartRegistry: ChartEntry[] = [
     description: 'Monthly cohorts and retention curves',
     render: (ctx) => <CohortsChart cohorts={ctx.cohorts} loading={ctx.cohortsLoading} error={ctx.cohortsError} />,
   },
+  {
+    id: 'lead_coupons',
+    label: 'Lead Coupon Funnel',
+    description: 'Lead coupons created → redeemed → orders using',
+    render: (ctx) => (
+      <LeadCouponFunnelChart
+        summary={ctx.leadCouponsSummary}
+        points={ctx.leadCoupons}
+        loading={ctx.leadCouponsLoading}
+        error={ctx.leadCouponsError}
+      />
+    ),
+  },
 ];
 
 export const chartOptions: { label: string; value: ChartId; description?: string }[] = [
@@ -200,6 +221,7 @@ export const chartOptions: { label: string; value: ChartId; description?: string
   { label: 'Top Products by Revenue', value: 'top_products', description: 'Top sellers (revenue + units)' },
   { label: 'Top Categories by Revenue', value: 'top_categories', description: 'Top categories (revenue + units)' },
   { label: 'Retention Cohorts', value: 'retention_cohorts', description: 'Cohort retention heatmap' },
+  { label: 'Lead Coupon Funnel', value: 'lead_coupons', description: 'Lead coupons and usage rate' },
 ];
 
 export function getChartById(id: ChartId) {

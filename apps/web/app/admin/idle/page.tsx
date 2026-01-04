@@ -71,6 +71,8 @@ export default function IdleCustomersPage() {
   const [allIntent, setAllIntent] = useState<string | null>(null);
   const [allImprovement, setAllImprovement] = useState<string | null>(null);
   const [allCategory, setAllCategory] = useState<string | null>(null);
+  const [allLeadCouponOnly, setAllLeadCouponOnly] = useState(false);
+  const [idleLeadCouponOnly, setIdleLeadCouponOnly] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,6 +90,7 @@ export default function IdleCustomersPage() {
     intent: allIntent,
     improvement: allImprovement,
     category: allCategory,
+    leadCouponUsed: allLeadCouponOnly,
   });
 
   const { data: idleData, loading: idleLoading, error: idleError } = useGhlIdleCustomers({
@@ -103,6 +106,7 @@ export default function IdleCustomersPage() {
     minOrders: idleMinOrders,
     minSpend: idleMinSpend,
     query: searchQuery || undefined,
+    leadCouponUsed: idleLeadCouponOnly,
   });
 
   useEffect(() => {
@@ -166,6 +170,7 @@ export default function IdleCustomersPage() {
     if (allIntent) params.set('intent', allIntent);
     if (allImprovement) params.set('improvement', allImprovement);
     if (allCategory) params.set('category', allCategory);
+    if (allLeadCouponOnly) params.set('leadCouponUsed', '1');
     return `${API_BASE}/customers/ghl?${params.toString()}`;
   }, [
     storeId,
@@ -179,6 +184,7 @@ export default function IdleCustomersPage() {
     allIntent,
     allImprovement,
     allCategory,
+    allLeadCouponOnly,
   ]);
 
   const idleCsvUrl = useMemo(() => {
@@ -195,6 +201,7 @@ export default function IdleCustomersPage() {
     if (idleCategory) params.set('category', idleCategory);
     if (idleMinOrders != null) params.set('minOrders', String(idleMinOrders));
     if (idleMinSpend != null) params.set('minSpend', String(idleMinSpend));
+    if (idleLeadCouponOnly) params.set('leadCouponUsed', '1');
     return `${API_BASE}/customers/ghl-idle?${params.toString()}`;
   }, [
     tag,
@@ -207,6 +214,7 @@ export default function IdleCustomersPage() {
     idleCategory,
     idleMinOrders,
     idleMinSpend,
+    idleLeadCouponOnly,
   ]);
 
   const idleSegmentOptions = useMemo(() => {
@@ -217,6 +225,7 @@ export default function IdleCustomersPage() {
 
   const idleCategories = idleData?.categories ?? [];
   const allCategories = allData?.categories ?? [];
+  const leadStats = allData?.leadCouponStats ?? null;
   const allSummary = useMemo(() => {
     const rows = allData?.data ?? [];
     return {
@@ -293,6 +302,8 @@ export default function IdleCustomersPage() {
             label: 'Latest activity',
             value: formatDate(allSummary.latestActive ?? allSummary.latestOrder),
           },
+          { label: 'Lead coupons created', value: leadStats?.generated ?? '—' },
+          { label: 'Lead coupons used', value: leadStats?.redeemed ?? '—' },
         ]
       : [
           { label: 'Idle customers', value: activeTotal },
@@ -311,6 +322,8 @@ export default function IdleCustomersPage() {
             label: 'Latest order',
             value: formatDate(idleSummary.latestOrder),
           },
+          { label: 'Lead coupons created', value: leadStats?.generated ?? '—' },
+          { label: 'Lead coupons used', value: leadStats?.redeemed ?? '—' },
         ];
 
   const metaLine = `${viewLabel} • Showing ${activeRows.length} of ${activeTotal} • Page ${activePage} of ${totalPages}`;
@@ -350,6 +363,8 @@ export default function IdleCustomersPage() {
           setImprovement={setAllImprovement}
           category={allCategory}
           setCategory={setAllCategory}
+          leadCouponOnly={allLeadCouponOnly}
+          setLeadCouponOnly={setAllLeadCouponOnly}
           categories={allCategories}
           resetCursor={() => setAllPage(1)}
         />
@@ -372,6 +387,8 @@ export default function IdleCustomersPage() {
             setMinOrders={setIdleMinOrders}
             minSpend={idleMinSpend}
             setMinSpend={setIdleMinSpend}
+            leadCouponOnly={idleLeadCouponOnly}
+            setLeadCouponOnly={setIdleLeadCouponOnly}
             onCopyEmails={handleCopyEmails}
             csvUrl={idleCsvUrl}
             disableActions={!activeRows.length}

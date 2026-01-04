@@ -63,3 +63,18 @@ export type RetentionCohort = {
   customersInCohort: number;
   periods: RetentionCohortPeriod[];
 };
+
+export type LeadCouponPoint = {
+  date: string;
+  totalOrders: number;
+  leadOrders: number;
+  redemptionRate: number;
+};
+
+export type LeadCouponSummary = {
+  generated: number;
+  redeemed: number;
+  redeemedUses: number;
+  ordersUsing: number;
+  redemptionRate: number | null;
+};

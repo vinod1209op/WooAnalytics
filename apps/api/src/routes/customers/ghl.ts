@@ -1,6 +1,8 @@
 import { Router, Request, Response } from "express";
+import { prisma } from "../../prisma";
 import { listCustomFields, searchContactsByQuery } from "../../lib/ghl";
 import { asLower, parsePositiveInt } from "./utils";
+import { round2 } from "../analytics/utils";
 import { buildFieldDefMap, normalizeFieldDefs } from "./ghl-utils";
 import { buildDbAggregates, buildDbFallback } from "./ghl-db";
 import {
@@ -10,6 +12,7 @@ import {
   collectGhlCustomerCategories,
   type GhlCustomerRow,
 } from "./ghl-list-helpers";
+import { buildLeadCouponStats } from "./lead-coupon-stats";
 
 export function registerGhlCustomersRoute(router: Router) {
   router.get("/ghl", async (req: Request, res: Response) => {
@@ -69,6 +72,11 @@ export function registerGhlCustomersRoute(router: Router) {
         typeof req.query.category === "string" && req.query.category.trim()
           ? req.query.category.trim().toLowerCase()
           : null;
+      const leadCouponUsedFilter =
+        typeof req.query.leadCouponUsed === "string" &&
+        ["1", "true", "yes"].includes(req.query.leadCouponUsed.toLowerCase())
+          ? true
+          : null;
 
       if (!locationId) {
         return res.status(400).json({ error: "GHL_LOCATION_ID is required" });
@@ -107,22 +115,65 @@ export function registerGhlCustomersRoute(router: Router) {
         storeId,
         contacts: hydrated,
       });
-      const dbAggMap = await buildDbAggregates({
-        storeId,
-        customerIds: Array.from(new Set(Array.from(fallbackMap.values()).map((row) => row.id))),
-      });
+      const fallbackIds = Array.from(new Set(Array.from(fallbackMap.values()).map((row) => row.id)));
+      const [dbAggMap, leadCouponMinSpends, leadCouponUsedSet] = await Promise.all([
+        buildDbAggregates({
+          storeId,
+          customerIds: fallbackIds,
+        }),
+        storeId
+          ? prisma.coupon.findMany({
+              where: { storeId, code: { startsWith: "lead-" }, minimumSpend: { not: null } },
+              select: { minimumSpend: true },
+            })
+          : Promise.resolve([]),
+        storeId && fallbackIds.length
+          ? prisma.order.findMany({
+              where: {
+                storeId,
+                customerId: { in: fallbackIds },
+                coupons: { some: { coupon: { code: { startsWith: "lead-" } } } },
+              },
+              select: { customerId: true },
+            })
+          : Promise.resolve([]),
+      ]);
+      const leadMinSpendList = leadCouponMinSpends
+        .map((row) => row.minimumSpend)
+        .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+      const leadUsedIds = new Set(
+        leadCouponUsedSet
+          .map((row) => row.customerId)
+          .filter((id): id is number => typeof id === "number")
+      );
+
+      const computeRemainingSpend = (totalSpend: number | null) => {
+        if (totalSpend == null || !leadMinSpendList.length) return null;
+        let remaining: number | null = null;
+        for (const minSpend of leadMinSpendList) {
+          const next = Math.max(minSpend - totalSpend, 0);
+          if (remaining == null || next < remaining) remaining = next;
+        }
+        return remaining != null ? round2(remaining) : null;
+      };
 
       const rows: GhlCustomerRow[] = hydrated.map((contact) => {
         const email = contact.email ?? null;
         const fallback = email ? fallbackMap.get(email.toLowerCase()) : null;
         const dbAgg = fallback ? dbAggMap.get(fallback.id) : null;
-        return buildGhlCustomerRow({
+        const row = buildGhlCustomerRow({
           contact,
           fallback: fallback ?? null,
           dbAgg: dbAgg ?? null,
           defMap,
           defRecord,
         });
+        const totalSpend = row.metrics?.totalSpend ?? null;
+        return {
+          ...row,
+          leadCouponUsed: fallback ? leadUsedIds.has(fallback.id) : false,
+          leadCouponRemainingSpend: computeRemainingSpend(totalSpend),
+        };
       });
       const hasFilters =
         minOrders != null ||
@@ -131,7 +182,8 @@ export function registerGhlCustomersRoute(router: Router) {
         activeAfterDays != null ||
         intentFilter != null ||
         improvementFilter != null ||
-        categoryFilter != null;
+        categoryFilter != null ||
+        leadCouponUsedFilter != null;
       const filteredRows = applyGhlCustomerFilters(rows, {
         minOrders,
         minSpend,
@@ -140,8 +192,10 @@ export function registerGhlCustomersRoute(router: Router) {
         intentFilter,
         improvementFilter,
         categoryFilter,
+        leadCouponUsed: leadCouponUsedFilter,
       });
       const categories = collectGhlCustomerCategories(filteredRows);
+      const leadCouponStats = await buildLeadCouponStats({ storeId });
 
       const wantCsv =
         typeof req.query.format === "string" &&
@@ -167,6 +221,7 @@ export function registerGhlCustomersRoute(router: Router) {
         total: hasFilters ? filteredRows.length : search.total ?? filteredRows.length,
         nextPage: hasFilters ? null : search.nextPage ?? null,
         categories,
+        leadCouponStats,
         data: filteredRows,
       });
     } catch (err: any) {

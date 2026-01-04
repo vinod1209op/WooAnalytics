@@ -10,6 +10,7 @@ import { registerRetentionCohortsRoute } from "./retention-cohorts";
 import { registerPerformanceDropRoutes } from "./performance-drop";
 import { registerHealthRatiosRoute } from "./health-ratios";
 import { registerInsightRoutes } from "./insights";
+import { registerLeadCouponsRoute } from "./lead-coupons";
 
 export function createAnalyticsRouter() {
   const router = Router();
@@ -25,6 +26,7 @@ export function createAnalyticsRouter() {
   registerPerformanceDropRoutes(router);
   registerHealthRatiosRoute(router);
   registerInsightRoutes(router);
+  registerLeadCouponsRoute(router);
 
   return router;
 }

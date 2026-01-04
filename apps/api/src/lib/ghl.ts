@@ -196,6 +196,128 @@ export async function sendConversationEmail(params: {
   return handleGhlResponse(res, "GHL send email");
 }
 
+type GhlEmailTemplate = {
+  id: string;
+  name?: string | null;
+  subject?: string | null;
+  updatedAt?: string | null;
+};
+
+async function fetchTemplateCandidates(candidates: string[]) {
+  for (const url of candidates) {
+    const res = await fetchWithRetry(url, {
+      method: "GET",
+      headers: defaultHeaders(),
+    });
+    if (!res.ok) {
+      continue;
+    }
+    try {
+      const json = await handleGhlResponse(res, "GHL list templates");
+      return { json, url };
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+function normalizeTemplates(payload: any, limit: number) {
+  const candidates = [
+    payload?.builders,
+    payload?.templates,
+    payload?.emails,
+    payload?.items,
+    payload?.data,
+    payload?.data?.templates,
+    payload?.data?.emails,
+    payload?.data?.items,
+    payload?.templates?.data,
+    payload?.templates?.items,
+    payload?.templates?.templates,
+    payload?.emails?.data,
+    payload?.items?.items,
+    payload?.items?.data,
+    payload?.data?.templates?.data,
+    payload?.data?.templates?.items,
+    payload?.data?.items?.data,
+    payload?.data?.items?.items,
+  ];
+  const raw = (candidates.find(Array.isArray) as any[]) || (Array.isArray(payload) ? payload : []);
+
+  const templates = (raw as any[])
+    .map((item) => {
+      const itemType = String(item?.type || item?.templateType || "").toLowerCase();
+      if (item?.isFolder || itemType === "folder") return null;
+      const id = item?.id || item?._id || item?.templateId;
+      if (!id) return null;
+      const name =
+        item?.name ||
+        item?.title ||
+        item?.templateName ||
+        item?.subject ||
+        null;
+      const subject = item?.subject || item?.emailSubject || name || null;
+      return {
+        id: String(id),
+        name,
+        subject,
+        updatedAt:
+          item?.updatedAt ||
+          item?.updated_at ||
+          item?.modifiedAt ||
+          item?.dateUpdated ||
+          null,
+        previewUrl: item?.previewUrl || item?.preview_url || null,
+      } as GhlEmailTemplate;
+    })
+    .filter((item): item is GhlEmailTemplate => !!item);
+
+  return templates.slice(0, Math.max(limit, 1));
+}
+
+export async function listEmailTemplates(params: {
+  locationId: string;
+  limit?: number;
+  debug?: boolean;
+}) {
+  if (!process.env.GHL_PIT) throw new Error("GHL_PIT missing");
+  const limit = params.limit ?? 3;
+
+  const overridePath = process.env.GHL_TEMPLATES_PATH?.trim();
+  const candidates: string[] = [];
+
+  if (overridePath) {
+    const path = overridePath.replace("{locationId}", params.locationId);
+    if (/^https?:\/\//i.test(path)) {
+      candidates.push(path);
+    } else {
+      candidates.push(`${GHL_BASE}${path.startsWith("/") ? "" : "/"}${path}`);
+    }
+  } else {
+    candidates.push(
+      `${GHL_BASE}/locations/${params.locationId}/templates?type=email`,
+      `${GHL_BASE}/templates?locationId=${params.locationId}&type=email`,
+      `${GHL_BASE}/emails/templates?locationId=${params.locationId}`
+    );
+  }
+
+  const result = await fetchTemplateCandidates(candidates);
+  if (!result) {
+    throw new Error("GHL email templates endpoint not found");
+  }
+
+  const templates = normalizeTemplates(result.json, limit);
+  if (params.debug) {
+    return {
+      templates,
+      sourceUrl: result.url,
+      raw: result.json,
+    };
+  }
+  return { templates };
+}
+
 export type SearchContactsResult = {
   contacts: GhlContact[];
   total?: number;

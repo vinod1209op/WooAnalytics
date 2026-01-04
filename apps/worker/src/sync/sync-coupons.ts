@@ -18,6 +18,13 @@ export async function syncCoupons(ctx: SyncContext): Promise<SyncStats> {
         warnings.push("Coupon without code");
         continue;
       }
+      const createdAt = coupon.date_created
+        ? new Date(coupon.date_created)
+        : coupon.date_created_gmt
+          ? new Date(coupon.date_created_gmt)
+          : null;
+
+      const createdAtUpdate = createdAt ? { createdAt } : {};
 
       await prisma.coupon.upsert({
         where: {
@@ -35,6 +42,7 @@ export async function syncCoupons(ctx: SyncContext): Promise<SyncStats> {
           dateExpires: coupon.date_expires ? new Date(coupon.date_expires) : null,
           usageLimit: coupon.usage_limit ?? null,
           usageCount: coupon.usage_count ?? null,
+          ...createdAtUpdate,
         },
         create: {
           storeId: ctx.store.id,
@@ -47,6 +55,7 @@ export async function syncCoupons(ctx: SyncContext): Promise<SyncStats> {
           dateExpires: coupon.date_expires ? new Date(coupon.date_expires) : null,
           usageLimit: coupon.usage_limit ?? null,
           usageCount: coupon.usage_count ?? null,
+          createdAt: createdAt ?? new Date(),
         },
       });
       processed++;
