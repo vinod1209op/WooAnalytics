@@ -103,9 +103,9 @@ function buildPeriodRanges() {
   weekStart.setDate(weekStart.getDate() - 6);
   const weekFrom = formatYmd(weekStart);
 
-  const monthStart = new Date(today);
-  monthStart.setDate(1);
-  const monthFrom = formatYmd(monthStart);
+  const rollingStart = new Date(today);
+  rollingStart.setDate(rollingStart.getDate() - 29);
+  const monthFrom = formatYmd(rollingStart);
 
   return [
     {
@@ -117,7 +117,7 @@ function buildPeriodRanges() {
     },
     {
       key: "monthly",
-      label: `Monthly (${monthFrom} → ${to})`,
+      label: `Rolling 30 days (${monthFrom} → ${to})`,
       from: monthFrom,
       to,
       snapshotDate: to,
@@ -140,9 +140,18 @@ async function resolveStoreId() {
 
 export async function GET(req: Request) {
   try {
+    const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const startedAt = new Date().toISOString();
     if (CRON_SECRET) {
       const auth = req.headers.get("authorization");
-      if (auth !== `Bearer ${CRON_SECRET}`) {
+      const cronHeader = req.headers.get("x-vercel-cron");
+      const { searchParams } = new URL(req.url);
+      const querySecret = searchParams.get("cronSecret");
+      const authorized =
+        auth === `Bearer ${CRON_SECRET}` ||
+        querySecret === CRON_SECRET ||
+        cronHeader === "1";
+      if (!authorized) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
     }
@@ -289,7 +298,16 @@ export async function GET(req: Request) {
       })
     );
 
-    return NextResponse.json({ ok: true, snapshots });
+    const finishedAt = new Date().toISOString();
+    console.log("notion-kpi cron success", {
+      runId,
+      startedAt,
+      finishedAt,
+      storeId,
+      ranges: ranges.map((range) => range.key),
+    });
+
+    return NextResponse.json({ ok: true, runId, startedAt, finishedAt, snapshots });
   } catch (err: unknown) {
     console.error("cron/notion-kpi error:", err);
     const message = err instanceof Error ? err.message : "Snapshot failed";
