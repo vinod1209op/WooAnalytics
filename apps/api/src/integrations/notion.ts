@@ -189,7 +189,12 @@ export async function createKpiSnapshot(options: SnapshotOptions) {
   };
 
   const db = await notion.databases.retrieve({ database_id: databaseId });
-  const dbProps = isFullDatabase(db) ? db.properties : {};
+  const dataSourceId = isFullDatabase(db) ? db.data_sources?.[0]?.id ?? null : null;
+  let dbProps: Record<string, any> = {};
+  if (dataSourceId) {
+    const dataSource = await notion.dataSources.retrieve({ data_source_id: dataSourceId });
+    dbProps = 'properties' in dataSource ? dataSource.properties : {};
+  }
 
   const missingNumberProps: Record<string, any> = {};
   const numberProps = { ...baseNumbers, ...prevNumbers };
@@ -210,14 +215,14 @@ export async function createKpiSnapshot(options: SnapshotOptions) {
   });
 
   let schemaUpdated = false;
-  if (Object.keys(missingNumberProps).length > 0 || Object.keys(missingTextProps).length > 0) {
+  if (
+    dataSourceId &&
+    (Object.keys(missingNumberProps).length > 0 || Object.keys(missingTextProps).length > 0)
+  ) {
     try {
-      await notion.request({
-        path: `databases/${databaseId}`,
-        method: 'PATCH',
-        body: {
-          properties: { ...missingNumberProps, ...missingTextProps },
-        },
+      await notion.dataSources.update({
+        data_source_id: dataSourceId,
+        properties: { ...missingNumberProps, ...missingTextProps },
       });
       schemaUpdated = true;
     } catch (err) {
@@ -225,8 +230,8 @@ export async function createKpiSnapshot(options: SnapshotOptions) {
     }
   }
 
-  const allowedKeys = new Set(Object.keys(dbProps));
-  if (schemaUpdated) {
+  const allowedKeys = dataSourceId ? new Set(Object.keys(dbProps)) : null;
+  if (schemaUpdated && allowedKeys) {
     Object.keys(missingNumberProps).forEach((name) => allowedKeys.add(name));
     Object.keys(missingTextProps).forEach((name) => allowedKeys.add(name));
   }
@@ -237,7 +242,7 @@ export async function createKpiSnapshot(options: SnapshotOptions) {
       safeProperties[key] = value;
       return;
     }
-    if (allowedKeys.has(key)) {
+    if (!allowedKeys || allowedKeys.has(key)) {
       safeProperties[key] = value;
     }
   });
