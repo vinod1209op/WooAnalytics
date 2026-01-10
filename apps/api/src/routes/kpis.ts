@@ -11,6 +11,32 @@ const SAMPLE_PRODUCT_NAMES = [
   'Pure Dose Enigma Sample Pack - 10 Capsules',
 ];
 const SAMPLE_CATEGORY_NAME = 'Capsule samples';
+const SAMPLE_NAME_MATCH = { contains: 'Sample Pack', mode: 'insensitive' } as const;
+const MOVEMENT_UTM_SOURCE = 'mcrdse-movement';
+
+const sampleItemFilter = {
+  OR: [
+    { name: { in: SAMPLE_PRODUCT_NAMES } },
+    { name: SAMPLE_NAME_MATCH },
+    {
+      product: {
+        OR: [
+          { name: { in: SAMPLE_PRODUCT_NAMES } },
+          { name: SAMPLE_NAME_MATCH },
+          {
+            categories: {
+              some: {
+                category: {
+                  name: { equals: SAMPLE_CATEGORY_NAME, mode: 'insensitive' },
+                },
+              },
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as const;
 
 async function getSampleBuyerStats(params: {
   storeId: string;
@@ -22,82 +48,107 @@ async function getSampleBuyerStats(params: {
     where: {
       storeId,
       createdAt: { gte: fromDate, lt: toExclusive },
-      customerId: { not: null },
       items: {
-        some: {
-          OR: [
-            { name: { in: SAMPLE_PRODUCT_NAMES } },
-            {
-              product: {
-                OR: [
-                  { name: { in: SAMPLE_PRODUCT_NAMES } },
-                  {
-                    categories: {
-                      some: {
-                        category: {
-                          name: { equals: SAMPLE_CATEGORY_NAME, mode: 'insensitive' },
-                        },
-                      },
-                    },
-                  },
-                ],
-              },
-            },
-          ],
-        },
+        some: sampleItemFilter,
       },
     },
-    select: { customerId: true, createdAt: true },
+    select: { customerId: true, billingEmail: true, createdAt: true },
   });
 
   if (!sampleOrders.length) {
     return { sampleBuyers: 0, sampleRepeatBuyers: 0, sampleRepeatRate: null };
   }
 
-  const firstSampleByCustomer = new Map<number, Date>();
+  const firstSampleByCustomer = new Map<string, Date>();
   for (const order of sampleOrders) {
-    if (!order.customerId) continue;
-    const existing = firstSampleByCustomer.get(order.customerId);
+    const emailKey = order.billingEmail?.trim().toLowerCase();
+    const key = order.customerId != null ? `id:${order.customerId}` : emailKey ? `email:${emailKey}` : null;
+    if (!key) continue;
+    const existing = firstSampleByCustomer.get(key);
     if (!existing || order.createdAt < existing) {
-      firstSampleByCustomer.set(order.customerId, order.createdAt);
+      firstSampleByCustomer.set(key, order.createdAt);
     }
   }
 
-  const customerIds = Array.from(firstSampleByCustomer.keys());
-  if (!customerIds.length) {
+  const customerIds = Array.from(firstSampleByCustomer.keys())
+    .filter((key) => key.startsWith('id:'))
+    .map((key) => Number(key.slice(3)))
+    .filter((id) => !Number.isNaN(id));
+  const billingEmails = Array.from(firstSampleByCustomer.keys())
+    .filter((key) => key.startsWith('email:'))
+    .map((key) => key.slice(6));
+  if (!customerIds.length && !billingEmails.length) {
     return { sampleBuyers: 0, sampleRepeatBuyers: 0, sampleRepeatRate: null };
   }
 
-  const minSampleDate = sampleOrders.reduce(
-    (min, order) => (order.createdAt < min ? order.createdAt : min),
-    sampleOrders[0].createdAt
-  );
-
-  const followUpOrders = await prisma.order.findMany({
+  const allSampleOrders = await prisma.order.findMany({
     where: {
       storeId,
-      customerId: { in: customerIds },
-      createdAt: { gt: minSampleDate, lt: toExclusive },
+      OR: [
+        customerIds.length ? { customerId: { in: customerIds } } : undefined,
+        billingEmails.length ? { billingEmail: { in: billingEmails } } : undefined,
+      ].filter(Boolean) as any,
+      items: {
+        some: sampleItemFilter,
+      },
     },
-    select: { customerId: true, createdAt: true },
+    select: { customerId: true, billingEmail: true },
   });
 
-  const repeatBuyerIds = new Set<number>();
-  for (const order of followUpOrders) {
-    if (!order.customerId) continue;
-    const firstSampleAt = firstSampleByCustomer.get(order.customerId);
-    if (firstSampleAt && order.createdAt > firstSampleAt) {
-      repeatBuyerIds.add(order.customerId);
+  const sampleOrderCounts = new Map<string, number>();
+  for (const order of allSampleOrders) {
+    const emailKey = order.billingEmail?.trim().toLowerCase();
+    const key = order.customerId != null ? `id:${order.customerId}` : emailKey ? `email:${emailKey}` : null;
+    if (!key) continue;
+    sampleOrderCounts.set(key, (sampleOrderCounts.get(key) ?? 0) + 1);
+  }
+
+  const repeatBuyerIds = new Set<string>();
+  for (const [key, count] of sampleOrderCounts.entries()) {
+    if (count >= 2) {
+      repeatBuyerIds.add(key);
     }
   }
 
-  const sampleBuyers = customerIds.length;
+  const sampleBuyers = firstSampleByCustomer.size;
   const sampleRepeatBuyers = repeatBuyerIds.size;
   const sampleRepeatRate = sampleBuyers
     ? round2((sampleRepeatBuyers / sampleBuyers) * 100)
     : null;
 
   return { sampleBuyers, sampleRepeatBuyers, sampleRepeatRate };
+}
+
+function getUniqueAttributionBuyers(
+  rows: { order?: { customerId: number | null; billingEmail: string | null } | null }[]
+) {
+  const emailToCustomerId = new Map<string, number>();
+  for (const row of rows) {
+    const customerId = row.order?.customerId ?? null;
+    const email = row.order?.billingEmail?.trim().toLowerCase();
+    if (customerId != null && email) {
+      emailToCustomerId.set(email, customerId);
+    }
+  }
+
+  const buyers = new Set<string>();
+  for (const row of rows) {
+    const customerId = row.order?.customerId ?? null;
+    if (customerId != null) {
+      buyers.add(`id:${customerId}`);
+      continue;
+    }
+    const email = row.order?.billingEmail?.trim().toLowerCase();
+    if (!email) continue;
+    const mappedId = emailToCustomerId.get(email);
+    if (mappedId != null) {
+      buyers.add(`id:${mappedId}`);
+      continue;
+    }
+    buyers.add(`email:${email}`);
+  }
+
+  return buyers.size;
 }
 
 router.get('/', async(req: Request, res: Response) => {
@@ -199,6 +250,8 @@ router.get('/', async(req: Request, res: Response) => {
           prevLeadCouponCreatedRows,
           sampleStats,
           prevSampleStats,
+          movementAttributions,
+          prevMovementAttributions,
         ] = await Promise.all([
         prisma.order.aggregate({
             _count: { _all: true },
@@ -292,6 +345,28 @@ router.get('/', async(req: Request, res: Response) => {
         }),
         getSampleBuyerStats({ storeId, fromDate, toExclusive: endExclusive }),
         getSampleBuyerStats({ storeId, fromDate: prevFrom, toExclusive: prevEndExclusive }),
+        prisma.orderAttribution.findMany({
+          where: {
+            utmSource: { equals: MOVEMENT_UTM_SOURCE, mode: 'insensitive' },
+            order: whereOrders,
+          },
+          select: {
+            order: {
+              select: { customerId: true, billingEmail: true },
+            },
+          },
+        }),
+        prisma.orderAttribution.findMany({
+          where: {
+            utmSource: { equals: MOVEMENT_UTM_SOURCE, mode: 'insensitive' },
+            order: prevWhereOrders,
+          },
+          select: {
+            order: {
+              select: { customerId: true, billingEmail: true },
+            },
+          },
+        }),
         ]);
 
         const orders = agg._count._all || 0;
@@ -352,6 +427,8 @@ router.get('/', async(req: Request, res: Response) => {
         const leadCouponRedemptionRatePrev = prevLeadCouponCreated
           ? round2((prevLeadCouponRedeemedCount / prevLeadCouponCreated) * 100)
           : null;
+        const movementCustomers = getUniqueAttributionBuyers(movementAttributions);
+        const movementCustomersPrev = getUniqueAttributionBuyers(prevMovementAttributions);
 
         // ----- 4) Send payload -----
         res.json({
@@ -369,6 +446,8 @@ router.get('/', async(req: Request, res: Response) => {
         newCustomers,
         leadCouponRedemptionRate,
         leadCouponRedemptionRatePrev,
+        movementCustomers,
+        movementCustomersPrev,
         sampleBuyers: sampleStats.sampleBuyers,
         sampleRepeatBuyers: sampleStats.sampleRepeatBuyers,
         sampleRepeatRate: sampleStats.sampleRepeatRate,

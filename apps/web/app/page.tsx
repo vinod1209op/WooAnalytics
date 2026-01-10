@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { KpiRow } from '@/components/dashboard/kpi-row';
 import { PopularProductsTable } from '@/components/dashboard/popular-products-table';
@@ -36,6 +36,15 @@ export default function Page() {
   const { categories, coupons } = useMetaFilters();
 
   const { kpis } = useKpis(filter);
+  const [kpiStartIndex, setKpiStartIndex] = useState(0);
+  const [kpiTotalCount, setKpiTotalCount] = useState(0);
+
+  useEffect(() => {
+    if (kpiTotalCount === 0) return;
+    setKpiStartIndex((current) =>
+      current >= kpiTotalCount ? 0 : current
+    );
+  }, [kpiTotalCount]);
 
   if (!hasMounted) return null;
 
@@ -89,11 +98,33 @@ export default function Page() {
             </Badge>
           )}
         </div>
+
+        {kpis && kpiTotalCount > 12 && (
+          <div className="flex items-center justify-end">
+            <input
+              aria-label="KPI carousel"
+              className="h-1 w-24 accent-[#7b5cd6]"
+              type="range"
+              min={0}
+              max={kpiTotalCount - 1}
+              step={1}
+              value={kpiStartIndex}
+              onChange={(event) => setKpiStartIndex(Number(event.target.value))}
+            />
+          </div>
+        )}
       </div>
 
       {/* KPI row */}
       <section className={`${card} ${pad}`}>
-        {kpis && <KpiRow {...kpis} />}
+        {kpis && (
+          <KpiRow
+            {...kpis}
+            startIndex={kpiStartIndex}
+            pageSize={12}
+            onTotalCountChange={setKpiTotalCount}
+          />
+        )}
       </section>
 
       {/* Main grid: popular products + categories + recent orders */}

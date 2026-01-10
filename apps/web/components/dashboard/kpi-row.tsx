@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo } from 'react';
 import {
   DollarSign,
   ShoppingCart,
@@ -15,12 +16,24 @@ import {
   UserPlus,
   Gift,
   Repeat,
+  Globe,
 } from 'lucide-react';
 import { fmtMoney } from '@/lib/money';
 import { KpiCard } from './kpi-card';
 import type { KpiSummary } from '@/types/kpi';
 
-export function KpiRow(kpis: KpiSummary) {
+type KpiRowProps = KpiSummary & {
+  startIndex?: number;
+  pageSize?: number;
+  onTotalCountChange?: (count: number) => void;
+};
+
+export function KpiRow({
+  startIndex = 0,
+  pageSize = 12,
+  onTotalCountChange,
+  ...kpis
+}: KpiRowProps) {
   const prev = kpis.previous;
   const pct = (current: number, previous?: number) => {
     if (previous === undefined || previous === 0) return undefined;
@@ -35,95 +48,130 @@ export function KpiRow(kpis: KpiSummary) {
   const formatPercent = (value?: number | null) =>
     value == null ? '—' : `${value.toFixed(1)}%`;
 
-  return (
-    <section className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-      <KpiCard
-        icon={<DollarSign className="h-5 w-5" />}
-        label="Revenue"
-        value={fmtMoney(kpis.revenue)}
-        hint={pct(kpis.revenue, prev?.revenue)}
-      />
-      <KpiCard
-        icon={<ShoppingCart className="h-5 w-5" />}
-        label="Orders"
-        value={kpis.orders.toLocaleString()}
-        hint={pct(kpis.orders, prev?.orders)}
-      />
-      <KpiCard
-        icon={<LineIcon className="h-5 w-5" />}
-        label="AOV"
-        value={fmtMoney(kpis.aov)}
-        hint={pct(kpis.aov, prev?.aov)}
-      />
-      <KpiCard
-        icon={<Package className="h-5 w-5" />}
-        label="Units sold"
-        value={kpis.units.toLocaleString()}
-        hint={pct(kpis.units, prev?.units)}
-      />
-      <KpiCard
-        icon={<Users className="h-5 w-5" />}
-        label="Customers"
-        value={kpis.customers.toLocaleString()}
-        hint={pct(kpis.customers, prev?.customers)}
-      />
-      <KpiCard
-        icon={<Tag className="h-5 w-5" />}
-        label="Lead coupons %"
-        value={formatPercent(kpis.leadCouponRedemptionRate)}
-        hint={pct(
+  const cards = useMemo(
+    () => [
+      {
+        label: 'Revenue',
+        icon: <DollarSign className="h-5 w-5" />,
+        value: fmtMoney(kpis.revenue),
+        hint: pct(kpis.revenue, prev?.revenue),
+      },
+      {
+        label: 'Orders',
+        icon: <ShoppingCart className="h-5 w-5" />,
+        value: kpis.orders.toLocaleString(),
+        hint: pct(kpis.orders, prev?.orders),
+      },
+      {
+        label: 'AOV',
+        icon: <LineIcon className="h-5 w-5" />,
+        value: fmtMoney(kpis.aov),
+        hint: pct(kpis.aov, prev?.aov),
+      },
+      {
+        label: 'Units sold',
+        icon: <Package className="h-5 w-5" />,
+        value: kpis.units.toLocaleString(),
+        hint: pct(kpis.units, prev?.units),
+      },
+      {
+        label: 'Customers',
+        icon: <Users className="h-5 w-5" />,
+        value: kpis.customers.toLocaleString(),
+        hint: pct(kpis.customers, prev?.customers),
+      },
+      {
+        label: 'Lead coupons %',
+        icon: <Tag className="h-5 w-5" />,
+        value: formatPercent(kpis.leadCouponRedemptionRate),
+        hint: pct(
           kpis.leadCouponRedemptionRate ?? 0,
           kpis.leadCouponRedemptionRatePrev ?? undefined
-        )}
-      />
-      <KpiCard
-        icon={<RotateCcw className="h-5 w-5" />}
-        label="Refunds"
-        value={fmtMoney(kpis.refunds)}
-        hint={pct(kpis.refunds, prev?.refunds)}
-      />
-      <KpiCard
-        icon={<BadgePercent className="h-5 w-5" />}
-        label="Discounts"
-        value={fmtMoney(kpis.discounts)}
-        hint={pct(kpis.discounts, prev?.discounts)}
-      />
-      <KpiCard
-        icon={<Truck className="h-5 w-5" />}
-        label="Shipping"
-        value={fmtMoney(kpis.shipping)}
-        hint={pct(kpis.shipping, prev?.shipping)}
-      />
-      <KpiCard
-        icon={<Receipt className="h-5 w-5" />}
-        label="Tax collected"
-        value={fmtMoney(kpis.tax)}
-        hint={pct(kpis.tax, prev?.tax)}
-      />
-      <KpiCard
-        icon={<ListOrdered className="h-5 w-5" />}
-        label="Avg items/order"
-        value={kpis.avgItemsPerOrder.toFixed(2)}
-        hint={pct(kpis.avgItemsPerOrder, prev?.avgItemsPerOrder)}
-      />
-      <KpiCard
-        icon={<UserPlus className="h-5 w-5" />}
-        label="New customers"
-        value={kpis.newCustomers.toLocaleString()}
-        hint={pct(kpis.newCustomers, prev?.newCustomers)}
-      />
-      <KpiCard
-        icon={<Gift className="h-5 w-5" />}
-        label="Sample buyers"
-        value={kpis.sampleBuyers.toLocaleString()}
-        hint={pct(kpis.sampleBuyers, prev?.sampleBuyers)}
-      />
-      <KpiCard
-        icon={<Repeat className="h-5 w-5" />}
-        label="Sample repeat buyers"
-        value={kpis.sampleRepeatBuyers.toLocaleString()}
-        hint={pct(kpis.sampleRepeatBuyers, prev?.sampleRepeatBuyers)}
-      />
+        ),
+      },
+      {
+        label: 'Refunds',
+        icon: <RotateCcw className="h-5 w-5" />,
+        value: fmtMoney(kpis.refunds),
+        hint: pct(kpis.refunds, prev?.refunds),
+      },
+      {
+        label: 'Discounts',
+        icon: <BadgePercent className="h-5 w-5" />,
+        value: fmtMoney(kpis.discounts),
+        hint: pct(kpis.discounts, prev?.discounts),
+      },
+      {
+        label: 'Shipping',
+        icon: <Truck className="h-5 w-5" />,
+        value: fmtMoney(kpis.shipping),
+        hint: pct(kpis.shipping, prev?.shipping),
+      },
+      {
+        label: 'Tax collected',
+        icon: <Receipt className="h-5 w-5" />,
+        value: fmtMoney(kpis.tax),
+        hint: pct(kpis.tax, prev?.tax),
+      },
+      {
+        label: 'Avg items/order',
+        icon: <ListOrdered className="h-5 w-5" />,
+        value: kpis.avgItemsPerOrder.toFixed(2),
+        hint: pct(kpis.avgItemsPerOrder, prev?.avgItemsPerOrder),
+      },
+      {
+        label: 'New customers',
+        icon: <UserPlus className="h-5 w-5" />,
+        value: kpis.newCustomers.toLocaleString(),
+        hint: pct(kpis.newCustomers, prev?.newCustomers),
+      },
+      {
+        label: 'Sample buyers',
+        icon: <Gift className="h-5 w-5" />,
+        value: kpis.sampleBuyers.toLocaleString(),
+        hint: pct(kpis.sampleBuyers, prev?.sampleBuyers),
+      },
+      {
+        label: 'Sample repeat buyers',
+        icon: <Repeat className="h-5 w-5" />,
+        value: kpis.sampleRepeatBuyers.toLocaleString(),
+        hint: pct(kpis.sampleRepeatBuyers, prev?.sampleRepeatBuyers),
+      },
+      {
+        label: 'mcrdse-movement customers',
+        icon: <Globe className="h-5 w-5" />,
+        value: (kpis.movementCustomers ?? 0).toLocaleString(),
+        hint: pct(kpis.movementCustomers ?? 0, kpis.movementCustomersPrev ?? undefined),
+      },
+    ],
+    [kpis, prev]
+  );
+
+  const totalCount = cards.length;
+  const windowSize = Math.min(pageSize, totalCount);
+  const safeIndex = totalCount
+    ? ((startIndex % totalCount) + totalCount) % totalCount
+    : 0;
+  const visibleCards =
+    totalCount <= pageSize
+      ? cards
+      : Array.from({ length: windowSize }, (_, idx) => cards[(safeIndex + idx) % totalCount]);
+
+  useEffect(() => {
+    onTotalCountChange?.(totalCount);
+  }, [onTotalCountChange, totalCount]);
+
+  return (
+    <section className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+      {visibleCards.map((card) => (
+        <KpiCard
+          key={card.label}
+          icon={card.icon}
+          label={card.label}
+          value={card.value}
+          hint={card.hint}
+        />
+      ))}
     </section>
   );
 }
