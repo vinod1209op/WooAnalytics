@@ -13,6 +13,8 @@ import {
   Receipt,
   ListOrdered,
   UserPlus,
+  Gift,
+  Repeat,
 } from 'lucide-react';
 import { fmtMoney } from '@/lib/money';
 import { KpiCard } from './kpi-card';
@@ -109,6 +111,18 @@ export function KpiRow(kpis: KpiSummary) {
         label="New customers"
         value={kpis.newCustomers.toLocaleString()}
         hint={pct(kpis.newCustomers, prev?.newCustomers)}
+      />
+      <KpiCard
+        icon={<Gift className="h-5 w-5" />}
+        label="Sample buyers"
+        value={kpis.sampleBuyers.toLocaleString()}
+        hint={pct(kpis.sampleBuyers, prev?.sampleBuyers)}
+      />
+      <KpiCard
+        icon={<Repeat className="h-5 w-5" />}
+        label="Sample repeat buyers"
+        value={kpis.sampleRepeatBuyers.toLocaleString()}
+        hint={pct(kpis.sampleRepeatBuyers, prev?.sampleRepeatBuyers)}
       />
     </section>
   );

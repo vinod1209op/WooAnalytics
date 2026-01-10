@@ -11,10 +11,14 @@ export interface KpiPeriod {
   tax: number;
   avgItemsPerOrder: number;
   newCustomers: number;
+  sampleBuyers: number;
+  sampleRepeatBuyers: number;
 }
 
 export interface KpiSummary extends KpiPeriod {
   leadCouponRedemptionRate?: number | null;
   leadCouponRedemptionRatePrev?: number | null;
+  sampleRepeatRate?: number | null;
+  sampleRepeatRatePrev?: number | null;
   previous?: KpiPeriod;
 }
