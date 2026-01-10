@@ -1,5 +1,6 @@
 // apps/api/routes/kpis.ts
 import { Router, Request, Response } from 'express';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../prisma';
 import { parseDateRange, round2 } from './analytics/utils';
 
@@ -11,10 +12,10 @@ const SAMPLE_PRODUCT_NAMES = [
   'Pure Dose Enigma Sample Pack - 10 Capsules',
 ];
 const SAMPLE_CATEGORY_NAME = 'Capsule samples';
-const SAMPLE_NAME_MATCH = { contains: 'Sample Pack', mode: 'insensitive' } as const;
+const SAMPLE_NAME_MATCH = { contains: 'Sample Pack', mode: 'insensitive' as const };
 const MOVEMENT_UTM_SOURCE = 'mcrdse-movement';
 
-const sampleItemFilter = {
+const sampleItemFilter: Prisma.OrderItemWhereInput = {
   OR: [
     { name: { in: SAMPLE_PRODUCT_NAMES } },
     { name: SAMPLE_NAME_MATCH },
@@ -36,7 +37,7 @@ const sampleItemFilter = {
       },
     },
   ],
-} as const;
+};
 
 async function getSampleBuyerStats(params: {
   storeId: string;
