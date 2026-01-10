@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { Gift, Repeat, Globe, Tag } from 'lucide-react';
 
 import { KpiRow } from '@/components/dashboard/kpi-row';
+import { KpiCard } from '@/components/dashboard/kpi-card';
 import { PopularProductsTable } from '@/components/dashboard/popular-products-table';
 import { TopCategoriesTable } from '@/components/dashboard/top-categories-table';
 import { RecentOrdersTable } from '@/components/dashboard/recent-orders-table';
@@ -36,17 +38,21 @@ export default function Page() {
   const { categories, coupons } = useMetaFilters();
 
   const { kpis } = useKpis(filter);
-  const [kpiStartIndex, setKpiStartIndex] = useState(0);
-  const [kpiTotalCount, setKpiTotalCount] = useState(0);
-
-  useEffect(() => {
-    if (kpiTotalCount === 0) return;
-    setKpiStartIndex((current) =>
-      current >= kpiTotalCount ? 0 : current
-    );
-  }, [kpiTotalCount]);
 
   if (!hasMounted) return null;
+
+  const pct = (current: number, previous?: number | null) => {
+    if (previous === undefined || previous === null || previous === 0) return undefined;
+    const delta = ((current - previous) / previous) * 100;
+    const positive = delta >= 0;
+    const sign = positive ? '▲' : '▼';
+    return {
+      text: `${sign} ${Math.abs(delta).toFixed(1)}%`,
+      positive,
+    };
+  };
+  const formatPercent = (value?: number | null) =>
+    value == null ? '—' : `${value.toFixed(1)}%`;
 
   return (
     <div className="space-y-6">
@@ -99,20 +105,6 @@ export default function Page() {
           )}
         </div>
 
-        {kpis && kpiTotalCount > 12 && (
-          <div className="flex items-center justify-end">
-            <input
-              aria-label="KPI carousel"
-              className="h-1 w-24 accent-[#7b5cd6]"
-              type="range"
-              min={0}
-              max={kpiTotalCount - 1}
-              step={1}
-              value={kpiStartIndex}
-              onChange={(event) => setKpiStartIndex(Number(event.target.value))}
-            />
-          </div>
-        )}
       </div>
 
       {/* KPI row */}
@@ -120,12 +112,48 @@ export default function Page() {
         {kpis && (
           <KpiRow
             {...kpis}
-            startIndex={kpiStartIndex}
-            pageSize={12}
-            onTotalCountChange={setKpiTotalCount}
           />
         )}
       </section>
+
+      {/* Focus KPIs */}
+      {kpis && (
+        <section className={`${card} p-4 md:p-5`}>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiCard
+              icon={<Tag className="h-5 w-5" />}
+              label="Lead coupons %"
+              value={formatPercent(kpis.leadCouponRedemptionRate)}
+              hint={pct(
+                kpis.leadCouponRedemptionRate ?? 0,
+                kpis.leadCouponRedemptionRatePrev ?? undefined
+              )}
+              compact
+            />
+            <KpiCard
+              icon={<Gift className="h-5 w-5" />}
+              label="Sample buyers"
+              value={kpis.sampleBuyers.toLocaleString()}
+              hint={pct(kpis.sampleBuyers, kpis.previous?.sampleBuyers)}
+              compact
+            />
+            <KpiCard
+              icon={<Repeat className="h-5 w-5" />}
+              label="Sample repeat buyers"
+              value={kpis.sampleRepeatBuyers.toLocaleString()}
+              hint={pct(kpis.sampleRepeatBuyers, kpis.previous?.sampleRepeatBuyers)}
+              compact
+            />
+            <KpiCard
+              icon={<Globe className="h-5 w-5" />}
+              label="mcrdse-movement customers"
+              value={(kpis.movementCustomers ?? 0).toLocaleString()}
+              hint={pct(kpis.movementCustomers ?? 0, kpis.movementCustomersPrev ?? undefined)}
+              compact
+            />
+          </div>
+        </section>
+      )}
 
       {/* Main grid: popular products + categories + recent orders */}
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">

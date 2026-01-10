@@ -13,7 +13,12 @@ const SAMPLE_PRODUCT_NAMES = [
 ];
 const SAMPLE_CATEGORY_NAME = 'Capsule samples';
 const SAMPLE_NAME_MATCH = { contains: 'Sample Pack', mode: 'insensitive' as const };
-const MOVEMENT_UTM_SOURCE = 'mcrdse-movement';
+const MOVEMENT_UTM_TOKENS = ['mcrdse', 'movement'] as const;
+const movementUtmFilter = {
+  AND: MOVEMENT_UTM_TOKENS.map((token) => ({
+    utmSource: { contains: token, mode: 'insensitive' as const },
+  })),
+};
 
 const sampleItemFilter: Prisma.OrderItemWhereInput = {
   OR: [
@@ -348,7 +353,7 @@ router.get('/', async(req: Request, res: Response) => {
         getSampleBuyerStats({ storeId, fromDate: prevFrom, toExclusive: prevEndExclusive }),
         prisma.orderAttribution.findMany({
           where: {
-            utmSource: { equals: MOVEMENT_UTM_SOURCE, mode: 'insensitive' },
+            ...movementUtmFilter,
             order: whereOrders,
           },
           select: {
@@ -359,7 +364,7 @@ router.get('/', async(req: Request, res: Response) => {
         }),
         prisma.orderAttribution.findMany({
           where: {
-            utmSource: { equals: MOVEMENT_UTM_SOURCE, mode: 'insensitive' },
+            ...movementUtmFilter,
             order: prevWhereOrders,
           },
           select: {

@@ -3,20 +3,17 @@
 import { useEffect, useMemo } from 'react';
 import {
   DollarSign,
+  Banknote,
   ShoppingCart,
   LineChart as LineIcon,
   Package,
   Users,
   RotateCcw,
-  Tag,
   BadgePercent,
   Truck,
   Receipt,
   ListOrdered,
   UserPlus,
-  Gift,
-  Repeat,
-  Globe,
 } from 'lucide-react';
 import { fmtMoney } from '@/lib/money';
 import { KpiCard } from './kpi-card';
@@ -45,8 +42,6 @@ export function KpiRow({
       positive,
     };
   };
-  const formatPercent = (value?: number | null) =>
-    value == null ? '—' : `${value.toFixed(1)}%`;
 
   const cards = useMemo(
     () => [
@@ -81,13 +76,10 @@ export function KpiRow({
         hint: pct(kpis.customers, prev?.customers),
       },
       {
-        label: 'Lead coupons %',
-        icon: <Tag className="h-5 w-5" />,
-        value: formatPercent(kpis.leadCouponRedemptionRate),
-        hint: pct(
-          kpis.leadCouponRedemptionRate ?? 0,
-          kpis.leadCouponRedemptionRatePrev ?? undefined
-        ),
+        label: 'Net revenue',
+        icon: <Banknote className="h-5 w-5" />,
+        value: fmtMoney(kpis.netRevenue),
+        hint: pct(kpis.netRevenue, prev?.netRevenue),
       },
       {
         label: 'Refunds',
@@ -124,24 +116,6 @@ export function KpiRow({
         icon: <UserPlus className="h-5 w-5" />,
         value: kpis.newCustomers.toLocaleString(),
         hint: pct(kpis.newCustomers, prev?.newCustomers),
-      },
-      {
-        label: 'Sample buyers',
-        icon: <Gift className="h-5 w-5" />,
-        value: kpis.sampleBuyers.toLocaleString(),
-        hint: pct(kpis.sampleBuyers, prev?.sampleBuyers),
-      },
-      {
-        label: 'Sample repeat buyers',
-        icon: <Repeat className="h-5 w-5" />,
-        value: kpis.sampleRepeatBuyers.toLocaleString(),
-        hint: pct(kpis.sampleRepeatBuyers, prev?.sampleRepeatBuyers),
-      },
-      {
-        label: 'mcrdse-movement customers',
-        icon: <Globe className="h-5 w-5" />,
-        value: (kpis.movementCustomers ?? 0).toLocaleString(),
-        hint: pct(kpis.movementCustomers ?? 0, kpis.movementCustomersPrev ?? undefined),
       },
     ],
     [kpis, prev]
