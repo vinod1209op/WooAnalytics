@@ -435,6 +435,8 @@ router.get('/', async(req: Request, res: Response) => {
           : null;
         const movementCustomers = getUniqueAttributionBuyers(movementAttributions);
         const movementCustomersPrev = getUniqueAttributionBuyers(prevMovementAttributions);
+        const movementOrders = movementAttributions.length;
+        const movementOrdersPrev = prevMovementAttributions.length;
 
         // ----- 4) Send payload -----
         res.json({
@@ -454,6 +456,8 @@ router.get('/', async(req: Request, res: Response) => {
         leadCouponRedemptionRatePrev,
         movementCustomers,
         movementCustomersPrev,
+        movementOrders,
+        movementOrdersPrev,
         sampleBuyers: sampleStats.sampleBuyers,
         sampleRepeatBuyers: sampleStats.sampleRepeatBuyers,
         sampleRepeatRate: sampleStats.sampleRepeatRate,

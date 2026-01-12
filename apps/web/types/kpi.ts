@@ -20,6 +20,8 @@ export interface KpiSummary extends KpiPeriod {
   leadCouponRedemptionRatePrev?: number | null;
   movementCustomers?: number | null;
   movementCustomersPrev?: number | null;
+  movementOrders?: number | null;
+  movementOrdersPrev?: number | null;
   sampleRepeatRate?: number | null;
   sampleRepeatRatePrev?: number | null;
   previous?: KpiPeriod;
