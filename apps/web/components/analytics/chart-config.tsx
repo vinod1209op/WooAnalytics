@@ -13,6 +13,7 @@ import { TopProductsChart } from './top-products-chart';
 import { CohortsChart } from './cohorts-chart';
 import { TopCategoriesChart } from './top-categories-chart';
 import { LeadCouponFunnelChart } from './lead-coupon-funnel-chart';
+import { UtmOrdersChart } from './utm-orders-chart';
 import type { SalesPoint } from '@/types/sales';
 import type { SegmentPoint } from '@/types/segment';
 import type { RfmHeatmapCell } from '@/types/rfmCell';
@@ -27,6 +28,8 @@ import type {
   RetentionCohort,
   LeadCouponPoint,
   LeadCouponSummary,
+  UtmOrdersPoint,
+  UtmOrdersSummary,
 } from '@/types/analytics';
 import type { CategorySummary } from '@/types/category';
 
@@ -44,7 +47,8 @@ export type ChartId =
   | 'top_products'
   | 'top_categories'
   | 'retention_cohorts'
-  | 'lead_coupons';
+  | 'lead_coupons'
+  | 'utm_orders';
 
 export type ChartRegistryContext = {
   sales: SalesPoint[];
@@ -86,6 +90,11 @@ export type ChartRegistryContext = {
   leadCouponsSummary: LeadCouponSummary | null;
   leadCouponsLoading?: boolean;
   leadCouponsError?: string | null;
+  utmOrders: UtmOrdersPoint[];
+  utmOrdersTotal: number;
+  utmOrdersMovement: UtmOrdersSummary | null;
+  utmOrdersLoading?: boolean;
+  utmOrdersError?: string | null;
 };
 
 type ChartEntry = {
@@ -205,6 +214,20 @@ export const chartRegistry: ChartEntry[] = [
       />
     ),
   },
+  {
+    id: 'utm_orders',
+    label: 'UTM Source/Medium Orders',
+    description: 'Orders and unique customers by UTM source/medium',
+    render: (ctx) => (
+      <UtmOrdersChart
+        totalOrders={ctx.utmOrdersTotal}
+        movement={ctx.utmOrdersMovement}
+        points={ctx.utmOrders}
+        loading={ctx.utmOrdersLoading}
+        error={ctx.utmOrdersError}
+      />
+    ),
+  },
 ];
 
 export const chartOptions: { label: string; value: ChartId; description?: string }[] = [
@@ -222,6 +245,7 @@ export const chartOptions: { label: string; value: ChartId; description?: string
   { label: 'Top Categories by Revenue', value: 'top_categories', description: 'Top categories (revenue + units)' },
   { label: 'Retention Cohorts', value: 'retention_cohorts', description: 'Cohort retention heatmap' },
   { label: 'Lead Coupon Funnel', value: 'lead_coupons', description: 'Lead coupons and usage rate' },
+  { label: 'UTM Source/Medium Orders', value: 'utm_orders', description: 'Orders and customers by UTM source/medium' },
 ];
 
 export function getChartById(id: ChartId) {

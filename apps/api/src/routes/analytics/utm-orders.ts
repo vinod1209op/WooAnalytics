@@ -4,7 +4,6 @@ import { buildOrderWhere, parseDateQuery, round2 } from "./utils";
 
 const DEFAULT_LIMIT = 200;
 const DIRECT_LABEL = "Direct";
-const SOURCE_NONE_LABEL = "None";
 const MEDIUM_NONE_LABEL = "None";
 const DIRECT_TOKENS = new Set(["(direct)", "direct"]);
 const NONE_TOKENS = new Set([
@@ -55,10 +54,10 @@ const MEDIUM_MAP: { match: RegExp; label: string; key: string }[] = [
 
 function normalizeSource(value: string | null | undefined): NormalizedValue {
   const trimmed = value?.trim();
-  if (!trimmed) return { key: "none", label: SOURCE_NONE_LABEL };
+  if (!trimmed) return { key: "direct", label: DIRECT_LABEL };
   const lower = trimmed.toLowerCase();
   if (DIRECT_TOKENS.has(lower)) return { key: "direct", label: DIRECT_LABEL };
-  if (NONE_TOKENS.has(lower)) return { key: "none", label: SOURCE_NONE_LABEL };
+  if (NONE_TOKENS.has(lower)) return { key: "direct", label: DIRECT_LABEL };
   const mapped = SOURCE_MAP.find((entry) => entry.match.test(trimmed));
   if (mapped) return { key: mapped.key, label: mapped.label };
   if (trimmed.includes(".")) {
@@ -123,6 +122,8 @@ export function registerUtmOrdersRoute(router: Router) {
           customers: Set<string>;
         }
       >();
+      const movementOrders = new Set<number>();
+      const movementCustomers = new Set<string>();
 
       for (const order of orders) {
         const source = normalizeSource(order.attribution?.utmSource);
@@ -138,14 +139,21 @@ export function registerUtmOrdersRoute(router: Router) {
           };
 
         bucket.orders.add(order.id);
+        if (source.key === "mcrdse_movement") {
+          movementOrders.add(order.id);
+        }
 
         const customerId = order.customerId ?? null;
-        if (customerId != null) {
-          bucket.customers.add(`id:${customerId}`);
-        } else {
-          const email = order.billingEmail?.trim().toLowerCase();
-          if (email) {
-            bucket.customers.add(`email:${email}`);
+        const customerKey =
+          customerId != null
+            ? `id:${customerId}`
+            : order.billingEmail?.trim().toLowerCase()
+            ? `email:${order.billingEmail.trim().toLowerCase()}`
+            : null;
+        if (customerKey) {
+          bucket.customers.add(customerKey);
+          if (source.key === "mcrdse_movement") {
+            movementCustomers.add(customerKey);
           }
         }
 
@@ -153,6 +161,13 @@ export function registerUtmOrdersRoute(router: Router) {
       }
 
       const totalOrders = orders.length;
+      const movementSummary = {
+        orders: movementOrders.size,
+        customers: movementCustomers.size,
+        share: totalOrders
+          ? round2((movementOrders.size / totalOrders) * 100)
+          : 0,
+      };
 
       const points = Array.from(buckets.values())
         .map((bucket) => ({
@@ -167,7 +182,7 @@ export function registerUtmOrdersRoute(router: Router) {
         .sort((a, b) => b.orders - a.orders)
         .slice(0, limit);
 
-      return res.json({ totalOrders, points });
+      return res.json({ totalOrders, movement: movementSummary, points });
     } catch (err: any) {
       console.error("GET /analytics/utm-orders error:", err);
       return res

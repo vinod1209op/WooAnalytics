@@ -16,6 +16,7 @@ import { useTopProductsPerformance } from './useTopProductsPerformance';
 import { useRetentionCohorts } from './useRetentionCohorts';
 import { useTopCategoriesPerformance } from './useTopCategoriesPerformance';
 import { useLeadCoupons } from './useLeadCoupons';
+import { useUtmOrders } from './useUtmOrders';
 
 type UseAnalyticsChartsResult = {
   chartSlots: ChartId[];
@@ -42,9 +43,16 @@ export function useAnalyticsCharts(filter: FilterState): UseAnalyticsChartsResul
     loading: leadCouponsLoading,
     error: leadCouponsError,
   } = useLeadCoupons(filter);
+  const {
+    totalOrders: utmOrdersTotal,
+    movement: utmOrdersMovement,
+    points: utmOrders,
+    loading: utmOrdersLoading,
+    error: utmOrdersError,
+  } = useUtmOrders(filter);
   const [chartSlots, setChartSlotsState] = useState<ChartId[]>([
     'revenue_orders', // slot 1
-    'rolling', // slot 2
+    'utm_orders', // slot 2
     'top_categories', // slot 3
     'segments', // slot 4
   ]);
@@ -92,6 +100,11 @@ export function useAnalyticsCharts(filter: FilterState): UseAnalyticsChartsResul
     leadCouponsSummary,
     leadCouponsLoading,
     leadCouponsError,
+    utmOrders,
+    utmOrdersTotal,
+    utmOrdersMovement,
+    utmOrdersLoading,
+    utmOrdersError,
   };
 
   return { chartSlots, setChartSlots, chartContext };
