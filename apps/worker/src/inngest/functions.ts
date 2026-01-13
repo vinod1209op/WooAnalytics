@@ -51,7 +51,7 @@ type ScheduleContext = {
   logger: FunctionLogger;
 };
 
-const DEFAULT_SINCE_MS = 1000 * 60 * 60 * 24 * 3;
+const DEFAULT_SINCE_MS = 1000 * 60 * 60 * 24 * 2;
 
 async function loadStore(storeId: string) {
   if (!storeId) {
