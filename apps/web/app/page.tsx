@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Gift, Repeat, Globe, Tag, ShoppingCart } from 'lucide-react';
+import { Gift, Repeat, Globe, Tag } from 'lucide-react';
 
 import { KpiRow } from '@/components/dashboard/kpi-row';
 import { KpiCard } from '@/components/dashboard/kpi-card';
@@ -119,7 +119,7 @@ export default function Page() {
       {/* Focus KPIs */}
       {kpis && (
         <section className={`${card} p-4 md:p-5`}>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard
               icon={<Tag className="h-5 w-5" />}
               label="Lead coupons %"
@@ -149,13 +149,6 @@ export default function Page() {
               label="mcrdse-movement customers"
               value={(kpis.movementCustomers ?? 0).toLocaleString()}
               hint={pct(kpis.movementCustomers ?? 0, kpis.movementCustomersPrev ?? undefined)}
-              compact
-            />
-            <KpiCard
-              icon={<ShoppingCart className="h-5 w-5" />}
-              label="mcrdse-movement orders"
-              value={(kpis.movementOrders ?? 0).toLocaleString()}
-              hint={pct(kpis.movementOrders ?? 0, kpis.movementOrdersPrev ?? undefined)}
               compact
             />
           </div>

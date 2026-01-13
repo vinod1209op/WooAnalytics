@@ -13,7 +13,6 @@ import { TopProductsChart } from './top-products-chart';
 import { CohortsChart } from './cohorts-chart';
 import { TopCategoriesChart } from './top-categories-chart';
 import { LeadCouponFunnelChart } from './lead-coupon-funnel-chart';
-import { UtmOrdersChart } from './utm-orders-chart';
 import type { SalesPoint } from '@/types/sales';
 import type { SegmentPoint } from '@/types/segment';
 import type { RfmHeatmapCell } from '@/types/rfmCell';
@@ -28,7 +27,6 @@ import type {
   RetentionCohort,
   LeadCouponPoint,
   LeadCouponSummary,
-  UtmOrdersPoint,
 } from '@/types/analytics';
 import type { CategorySummary } from '@/types/category';
 
@@ -46,8 +44,7 @@ export type ChartId =
   | 'top_products'
   | 'top_categories'
   | 'retention_cohorts'
-  | 'lead_coupons'
-  | 'utm_orders';
+  | 'lead_coupons';
 
 export type ChartRegistryContext = {
   sales: SalesPoint[];
@@ -89,9 +86,6 @@ export type ChartRegistryContext = {
   leadCouponsSummary: LeadCouponSummary | null;
   leadCouponsLoading?: boolean;
   leadCouponsError?: string | null;
-  utmOrders: UtmOrdersPoint[];
-  utmOrdersLoading?: boolean;
-  utmOrdersError?: string | null;
 };
 
 type ChartEntry = {
@@ -211,18 +205,6 @@ export const chartRegistry: ChartEntry[] = [
       />
     ),
   },
-  {
-    id: 'utm_orders',
-    label: 'Orders by UTM source/medium',
-    description: 'Order volume by source + medium',
-    render: (ctx) => (
-      <UtmOrdersChart
-        points={ctx.utmOrders}
-        loading={ctx.utmOrdersLoading}
-        error={ctx.utmOrdersError}
-      />
-    ),
-  },
 ];
 
 export const chartOptions: { label: string; value: ChartId; description?: string }[] = [
@@ -240,7 +222,6 @@ export const chartOptions: { label: string; value: ChartId; description?: string
   { label: 'Top Categories by Revenue', value: 'top_categories', description: 'Top categories (revenue + units)' },
   { label: 'Retention Cohorts', value: 'retention_cohorts', description: 'Cohort retention heatmap' },
   { label: 'Lead Coupon Funnel', value: 'lead_coupons', description: 'Lead coupons and usage rate' },
-  { label: 'Orders by UTM source/medium', value: 'utm_orders', description: 'Orders by UTM source + medium' },
 ];
 
 export function getChartById(id: ChartId) {

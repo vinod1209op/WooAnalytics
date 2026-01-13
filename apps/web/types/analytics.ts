@@ -78,11 +78,3 @@ export type LeadCouponSummary = {
   ordersUsing: number;
   redemptionRate: number | null;
 };
-
-export type UtmOrdersPoint = {
-  source: string;
-  medium: string;
-  orders: number;
-  customers: number;
-  share: number;
-};

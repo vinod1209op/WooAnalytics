@@ -10,6 +10,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Calendar as CalendarIcon, ChevronDown } from 'lucide-react';
+import { useStore } from '@/providers/store-provider';
 
 export type FilterType = 'date' | 'category' | 'coupon';
 
@@ -40,6 +41,7 @@ export function FilterBar({
   categories = [],
   coupons = [],
 }: FilterBarProps) {
+  const { store } = useStore();
   const [dateOpen, setDateOpen] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [couponOpen, setCouponOpen] = useState(false);
@@ -51,6 +53,19 @@ export function FilterBar({
     to.setHours(0, 0, 0, 0);
     const from = new Date(to);
     from.setDate(from.getDate() - (days - 1));
+    update({
+      type: 'date',
+      date: { from, to },
+    });
+  };
+
+  const applySinceLaunch = () => {
+    if (!store?.firstOrderAt) return;
+    const to = new Date();
+    to.setHours(0, 0, 0, 0);
+    const from = new Date(store.firstOrderAt);
+    from.setDate(from.getDate() - 14);
+    from.setHours(0, 0, 0, 0);
     update({
       type: 'date',
       date: { from, to },
@@ -287,6 +302,15 @@ export function FilterBar({
                 onClick={() => applyPreset(365)}
               >
                 Last year
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={!store?.firstOrderAt}
+                className="rounded-lg bg-[#f0e5ff] text-[#5b3ba4] hover:bg-[#e5d8ff] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-purple-900/60 dark:text-purple-50 dark:hover:bg-purple-800/70"
+                onClick={applySinceLaunch}
+              >
+                Since launch
               </Button>
             </div>
           </div>

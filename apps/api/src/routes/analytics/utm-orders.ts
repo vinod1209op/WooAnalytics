@@ -2,13 +2,85 @@ import { Router, Request, Response } from "express";
 import { prisma } from "../../prisma";
 import { buildOrderWhere, parseDateQuery, round2 } from "./utils";
 
-const DEFAULT_LIMIT = 10;
+const DEFAULT_LIMIT = 200;
 const DIRECT_LABEL = "Direct";
+const SOURCE_NONE_LABEL = "None";
 const MEDIUM_NONE_LABEL = "None";
+const DIRECT_TOKENS = new Set(["(direct)", "direct"]);
+const NONE_TOKENS = new Set([
+  "(none)",
+  "none",
+  "(not set)",
+  "not set",
+  "(not provided)",
+  "not provided",
+]);
 
-function normalizeLabel(value: string | null | undefined, fallback: string) {
+type NormalizedValue = { key: string; label: string };
+
+const SOURCE_MAP: { match: RegExp; label: string; key: string }[] = [
+  { match: /^mcrdse[-_.]?movement/, label: "MCRDSE Movement", key: "mcrdse_movement" },
+  { match: /facebook|m\.facebook\.com|l\.facebook\.com|^fb$/i, label: "Facebook", key: "facebook" },
+  { match: /instagram\.com|l\.instagram\.com|^ig$/i, label: "Instagram", key: "instagram" },
+  { match: /linktr\.ee/i, label: "Linktree", key: "linktree" },
+  { match: /klaviyo/i, label: "Klaviyo", key: "klaviyo" },
+  { match: /leadconnectorhq\.com|msgsndr\.com/i, label: "LeadConnector", key: "leadconnector" },
+  { match: /com\.google\.android\.gm|gmail/i, label: "Gmail", key: "gmail" },
+  { match: /google/i, label: "Google", key: "google" },
+  { match: /duckduckgo/i, label: "DuckDuckGo", key: "duckduckgo" },
+  { match: /search\.yahoo\.com/i, label: "Yahoo", key: "yahoo" },
+  { match: /search\.brave\.com|brave\.com/i, label: "Brave", key: "brave" },
+  { match: /bing\.com/i, label: "Bing", key: "bing" },
+  { match: /telegram/i, label: "Telegram", key: "telegram" },
+  { match: /mcrdse\.ca/i, label: "MCRDSE", key: "mcrdse" },
+  { match: /tagassistant\.google\.com/i, label: "Google Tag Assistant", key: "google_tagassistant" },
+  { match: /dnserrorassist\.att\.net/i, label: "AT&T DNS Assist", key: "att_dns_assist" },
+  { match: /my\.10web\.io/i, label: "10Web", key: "10web" },
+  { match: /remotive\.com/i, label: "Remotive", key: "remotive" },
+];
+
+const MEDIUM_MAP: { match: RegExp; label: string; key: string }[] = [
+  { match: /ghl.*email/i, label: "GHL Email", key: "ghl_email" },
+  { match: /email/i, label: "Email", key: "email" },
+  { match: /quiz[-_\s]?submission/i, label: "Quiz Submission", key: "quiz_submission" },
+  { match: /referral/i, label: "Referral", key: "referral" },
+  { match: /organic/i, label: "Organic", key: "organic" },
+  { match: /cpc|paid/i, label: "Paid", key: "paid" },
+  { match: /campaign/i, label: "Campaign", key: "campaign" },
+  { match: /flow/i, label: "Flow", key: "flow" },
+  { match: /support/i, label: "Support", key: "support" },
+  { match: /sms/i, label: "SMS", key: "sms" },
+  { match: /website/i, label: "Website", key: "website" },
+];
+
+function normalizeSource(value: string | null | undefined): NormalizedValue {
   const trimmed = value?.trim();
-  return trimmed ? trimmed : fallback;
+  if (!trimmed) return { key: "none", label: SOURCE_NONE_LABEL };
+  const lower = trimmed.toLowerCase();
+  if (DIRECT_TOKENS.has(lower)) return { key: "direct", label: DIRECT_LABEL };
+  if (NONE_TOKENS.has(lower)) return { key: "none", label: SOURCE_NONE_LABEL };
+  const mapped = SOURCE_MAP.find((entry) => entry.match.test(trimmed));
+  if (mapped) return { key: mapped.key, label: mapped.label };
+  if (trimmed.includes(".")) {
+    return { key: lower, label: lower };
+  }
+  const label = trimmed
+    .toLowerCase()
+    .replace(/(^|[\s-_])([a-z])/g, (_, sep, ch) => `${sep}${ch.toUpperCase()}`);
+  return { key: lower, label };
+}
+
+function normalizeMedium(value: string | null | undefined): NormalizedValue {
+  const trimmed = value?.trim();
+  if (!trimmed) return { key: "none", label: MEDIUM_NONE_LABEL };
+  const lower = trimmed.toLowerCase();
+  if (NONE_TOKENS.has(lower)) return { key: "none", label: MEDIUM_NONE_LABEL };
+  const mapped = MEDIUM_MAP.find((entry) => entry.match.test(trimmed));
+  if (mapped) return { key: mapped.key, label: mapped.label };
+  const label = trimmed
+    .toLowerCase()
+    .replace(/(^|[\s-_])([a-z])/g, (_, sep, ch) => `${sep}${ch.toUpperCase()}`);
+  return { key: lower, label };
 }
 
 export function registerUtmOrdersRoute(router: Router) {
@@ -24,7 +96,7 @@ export function registerUtmOrdersRoute(router: Router) {
       const baseWhere = buildOrderWhere(req, fromDate, toDate);
       const limit = Math.max(
         1,
-        Math.min(25, Number(req.query.limit) || DEFAULT_LIMIT)
+        Math.min(200, Number(req.query.limit) || DEFAULT_LIMIT)
       );
 
       const orders = await prisma.order.findMany({
@@ -53,14 +125,14 @@ export function registerUtmOrdersRoute(router: Router) {
       >();
 
       for (const order of orders) {
-        const source = normalizeLabel(order.attribution?.utmSource, DIRECT_LABEL);
-        const medium = normalizeLabel(order.attribution?.utmMedium, MEDIUM_NONE_LABEL);
-        const key = `${source}||${medium}`;
+        const source = normalizeSource(order.attribution?.utmSource);
+        const medium = normalizeMedium(order.attribution?.utmMedium);
+        const key = `${source.key}::${medium.key}`;
         const bucket =
           buckets.get(key) ??
           {
-            source,
-            medium,
+            source: source.label,
+            medium: medium.label,
             orders: new Set<number>(),
             customers: new Set<string>(),
           };

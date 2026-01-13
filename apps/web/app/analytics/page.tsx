@@ -121,7 +121,7 @@ export default function AnalyticsPage() {
                 idx === 0
                   ? (['revenue_orders', 'orders', 'aov', 'cumulative'] as ChartId[])
                   : idx === 1
-                  ? (['rolling', 'refunds_discounts', 'shipping_tax', 'new_returning', 'lead_coupons', 'utm_orders'] as ChartId[])
+                  ? (['rolling', 'refunds_discounts', 'shipping_tax', 'new_returning', 'lead_coupons'] as ChartId[])
                   : idx === 2
                   ? (['top_products', 'top_categories'] as ChartId[])
                   : (['segments', 'rfm', 'retention_cohorts'] as ChartId[])

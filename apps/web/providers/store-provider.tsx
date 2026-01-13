@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 type Store = {
   id: string;
   name?: string;
+  firstOrderAt?: string | null;
 };
 
 interface StoreContextValue {

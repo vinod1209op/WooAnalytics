@@ -31,7 +31,15 @@ router.get('/default', async (req: Request, res: Response) => {
       return res.status(404).json({error: 'No stores'});
     }
 
-    res.json(store);
+    const firstOrderAgg = await prisma.order.aggregate({
+      _min: { createdAt: true },
+      where: { storeId: store.id },
+    });
+
+    res.json({
+      ...store,
+      firstOrderAt: firstOrderAgg._min.createdAt?.toISOString() ?? null,
+    });
   } catch (e: any) {
     console.error('GET /stores/default error:', e);
     res.status(500).json({ error: e.message });
