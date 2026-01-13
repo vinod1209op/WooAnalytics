@@ -4,7 +4,7 @@ Next.js frontend for WooAnalytics with live API data, insights cards, idle/win-b
 
 ## Features
 - Dashboard (KPIs, popular products, top categories, recent orders)
-- Analytics page (revenue/orders trends, segments, RFM, cohorts, refunds/discounts, shipping/tax, AOV, rolling/cumulative)
+- Analytics page (revenue/orders trends, UTM source/medium orders, segments, RFM, cohorts, refunds/discounts, shipping/tax, AOV, rolling/cumulative)
 - Insights cards: peak revenue day, anomalies (30d), repeat purchase rates (30/90d), health ratios (refund/discount rates, net vs gross)
 - Idle customers view (`/admin/idle`): filters (30/60/90d, segment, category, intent), segment cards (counts, avg days since last, avg LTV) with per-segment export, churn-risk sort, offers/messages, CSV export with tags, copy emails.
 - GHL quiz sync UI (`/ghl`): run quiz tag syncs with dry-run, limit, and contact query controls.

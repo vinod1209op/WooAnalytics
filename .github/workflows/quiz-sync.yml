@@ -1,8 +1,6 @@
 name: Quiz Sync
 
 on:
-  schedule:
-    - cron: "0 8 * * *" # daily at 08:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -23,4 +21,4 @@ jobs:
           curl -X POST "$API_URL/cron/sync-ghl-quiz-tags" \
             -H "Authorization: Bearer $CRON_SECRET" \
             -H "Content-Type: application/json" \
-            -d '{"storeId":"cmi42lm5y0000sq8n7w2t4rzn","locationId":"bF3HKbWR2CHUb1pETzNN","dryRun":false,"limit":200,"checkDrift":true}'
+            -d '{"storeId":"cmi42lm5y0000sq8n7w2t4rzn","locationId":"bF3HKbWR2CHUb1pETzNN","dryRun":true,"limit":200,"checkDrift":true}'

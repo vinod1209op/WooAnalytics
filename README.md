@@ -9,6 +9,7 @@ Next.js dashboard + Express API + Inngest-powered worker for syncing WooCommerce
 - **apps/worker** – Inngest/Express worker that talks to WooCommerce, upserts into Prisma, and computes analytics tables (default sync window now 2 days).
 - **prisma/** – Shared Prisma schema targeting Supabase/Postgres.
 - New analytics endpoints for insights: peak revenue day, anomalies, retention highlights, repeat purchase rates, health ratios, performance drops (products/categories), high-value orders, aging orders (all consumed by the AI and usable for UI cards).
+- UTM source/medium analytics: normalized source/medium orders + unique buyers with MCRDSE Movement rollups (used by the analytics page).
 - New customer idle/win-back endpoints: `/customers/inactive` (segments, metrics, churn risk, CSV with tags), `/customers/last-order`, `/customers/:id/winback`, `/customers/rfm-idle`, cron routes `/cron/idle-snapshot`, `/cron/idle-health`.
 - Optional GHL sync: `/cron/idle-sync-ghl` upserts idle customers into GHL with tags; requires backend envs.
 
@@ -113,7 +114,8 @@ pnpm dev
 | `pnpm --filter @wooanalytics/worker sync:full` | One-off full sync for the configured store (`STORE_ID`) |
 | `pnpm --filter @wooanalytics/worker typecheck` | Type-check worker |
 | `pnpm --filter @wooanalytics/api dev` | Start API server |
-| `pnpm --filter apps dev` (from `apps/web`) | Start Next.js dashboard |
+| `pnpm dev:api` | Start API server (from repo root) |
+| `pnpm dev:web` | Start Next.js dashboard (from repo root) |
 | `pnpm prisma migrate deploy` | Apply Prisma schema |
 
 ## Repository Structure
