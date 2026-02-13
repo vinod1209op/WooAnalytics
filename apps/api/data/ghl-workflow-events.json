@@ -1,0 +1,128 @@
+{
+  "events": [
+    {
+      "id": "wf_1770982644732_prqn3nra",
+      "eventType": "inbound",
+      "timestamp": "2026-02-13T11:37:24.729Z",
+      "conversationId": "conv_test_1",
+      "contactId": null,
+      "locationId": "bF3HKbWR2CHUb1pETzNN",
+      "channel": "instagram",
+      "repId": null,
+      "repName": "Vinod",
+      "firstResponseSeconds": null,
+      "repliedWithinMinutes": null,
+      "sentiment": "positive",
+      "intent": "interested",
+      "leadTemperature": "warm",
+      "engaged": null,
+      "booked": null,
+      "saleValue": null,
+      "metadata": null
+    },
+    {
+      "id": "wf_1770983694720_lbgq1prr",
+      "eventType": "inbound",
+      "timestamp": "2026-02-13T11:54:54.720Z",
+      "conversationId": "conv_test_live_1",
+      "contactId": "contact_test_live_1",
+      "locationId": "loc_test_live_1",
+      "channel": "instagram",
+      "repId": null,
+      "repName": null,
+      "sentiment": "neutral",
+      "intent": "question",
+      "leadTemperature": "warm",
+      "engaged": true,
+      "booked": false,
+      "metadata": {
+        "source": "ghl-ai-analyze",
+        "summary": "Need pricing and can I book a call tomorrow?",
+        "recommendedAction": "Reply with clarifying question and CTA."
+      }
+    },
+    {
+      "id": "wf_1770983808669_65ovqeq9",
+      "eventType": "inbound",
+      "timestamp": "2026-02-13T11:56:48.669Z",
+      "conversationId": "conv_1",
+      "contactId": "contact_1",
+      "locationId": "loc_1",
+      "channel": "instagram",
+      "repId": null,
+      "repName": null,
+      "sentiment": "neutral",
+      "intent": "interested",
+      "leadTemperature": "warm",
+      "engaged": true,
+      "booked": false,
+      "metadata": {
+        "source": "ghl-ai-analyze",
+        "summary": "Need pricing",
+        "recommendedAction": "Reply with clarifying question and CTA."
+      }
+    },
+    {
+      "id": "wf_1770983840437_naidalpd",
+      "eventType": "inbound",
+      "timestamp": "2026-02-13T11:57:20.438Z",
+      "conversationId": "conv_smoke_02ded805",
+      "contactId": "contact_smoke_1",
+      "locationId": "loc_smoke_1",
+      "channel": "instagram",
+      "repId": null,
+      "repName": null,
+      "sentiment": "neutral",
+      "intent": "interested",
+      "leadTemperature": "warm",
+      "engaged": true,
+      "booked": false,
+      "metadata": {
+        "source": "ghl-ai-analyze",
+        "summary": "I want pricing and maybe book this week",
+        "recommendedAction": "Reply with clarifying question and CTA."
+      }
+    },
+    {
+      "id": "wf_1770983840473_w16d47ie",
+      "eventType": "outbound_reply",
+      "timestamp": "2026-02-13T11:57:20.473Z",
+      "conversationId": "conv_smoke_02ded805",
+      "contactId": "contact_smoke_1",
+      "locationId": "loc_smoke_1",
+      "channel": "instagram",
+      "repId": "rep_smoke_1",
+      "repName": "Smoke Rep",
+      "firstResponseSeconds": 180,
+      "repliedWithinMinutes": 3,
+      "sentiment": null,
+      "intent": null,
+      "leadTemperature": null,
+      "engaged": null,
+      "booked": null,
+      "saleValue": null,
+      "metadata": null
+    },
+    {
+      "id": "wf_1770984095907_z7whi3q2",
+      "eventType": "inbound",
+      "timestamp": "2026-02-13T12:01:35.907Z",
+      "conversationId": "conv_sec_smoke1",
+      "contactId": null,
+      "locationId": "bF3HKbWR2CHUb1pETzNN",
+      "channel": null,
+      "repId": null,
+      "repName": null,
+      "sentiment": "neutral",
+      "intent": "interested",
+      "leadTemperature": "warm",
+      "engaged": true,
+      "booked": false,
+      "metadata": {
+        "source": "ghl-ai-analyze",
+        "summary": "quick smoke no secret",
+        "recommendedAction": "Reply with clarifying question and CTA."
+      }
+    }
+  ]
+}

@@ -198,6 +198,61 @@ export async function sendConversationEmail(params: {
   return handleGhlResponse(res, "GHL send email");
 }
 
+export type GhlConversationMessage = {
+  id: string;
+  direction?: string | null;
+  status?: string | null;
+  type?: string | number | null;
+  messageType?: string | null;
+  contentType?: string | null;
+  dateAdded?: string | null;
+  dateUpdated?: string | null;
+  conversationId?: string | null;
+  [key: string]: any;
+};
+
+export async function exportConversationMessages(params: {
+  locationId: string;
+  startDate?: string;
+  endDate?: string;
+  limit?: number;
+  lastMessageId?: string | null;
+}) {
+  if (!process.env.GHL_PIT) throw new Error("GHL_PIT missing");
+
+  const query = new URLSearchParams();
+  query.set("locationId", params.locationId);
+  const limit = Math.min(Math.max(params.limit ?? 200, 10), 500);
+  query.set("limit", String(limit));
+  if (params.startDate) query.set("startDate", params.startDate);
+  if (params.endDate) query.set("endDate", params.endDate);
+  if (params.lastMessageId) query.set("lastMessageId", params.lastMessageId);
+
+  const res = await fetchWithRetry(
+    `${GHL_BASE}/conversations/messages/export?${query.toString()}`,
+    {
+      method: "GET",
+      headers: defaultHeaders(),
+    }
+  );
+
+  const json = await handleGhlResponse(res, "GHL export conversation messages");
+  const messages = Array.isArray(json?.messages)
+    ? (json.messages as any[]).filter((item) => item && item.id)
+    : [];
+
+  return {
+    messages: messages as GhlConversationMessage[],
+    nextCursor:
+      json?.nextCursor == null ? null : String(json.nextCursor),
+    total:
+      typeof json?.total === "number" && Number.isFinite(json.total)
+        ? json.total
+        : null,
+    traceId: json?.traceId ? String(json.traceId) : null,
+  };
+}
+
 type GhlEmailTemplate = {
   id: string;
   name?: string | null;

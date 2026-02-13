@@ -9,6 +9,8 @@ import { registerGhlIdleCustomersRoute } from "./ghl-idle";
 import { registerGhlActionsRoute } from "./ghl-actions";
 import { registerGhlEmailRoute } from "./ghl-email";
 import { registerGhlEmailTemplatesRoute } from "./ghl-templates";
+import { registerGhlDashboardRoute } from "./ghl-dashboard";
+import { registerGhlWorkflowRoute } from "./ghl-workflow";
 
 const router = Router();
 
@@ -22,5 +24,7 @@ registerGhlIdleCustomersRoute(router);
 registerGhlActionsRoute(router);
 registerGhlEmailRoute(router);
 registerGhlEmailTemplatesRoute(router);
+registerGhlDashboardRoute(router);
+registerGhlWorkflowRoute(router);
 
 export default router;

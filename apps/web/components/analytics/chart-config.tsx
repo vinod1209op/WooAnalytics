@@ -14,11 +14,15 @@ import { CohortsChart } from './cohorts-chart';
 import { TopCategoriesChart } from './top-categories-chart';
 import { LeadCouponFunnelChart } from './lead-coupon-funnel-chart';
 import { UtmOrdersChart } from './utm-orders-chart';
+import { CartRecoveryChart } from './cart-recovery-chart';
 import type { SalesPoint } from '@/types/sales';
 import type { SegmentPoint } from '@/types/segment';
 import type { RfmHeatmapCell } from '@/types/rfmCell';
 import type {
   AovPoint,
+  CartRecoveryPoint,
+  CartRecoverySpeedBucket,
+  CartRecoverySummary,
   CumulativePoint,
   RollingPoint,
   ProductPerformance,
@@ -48,7 +52,8 @@ export type ChartId =
   | 'top_categories'
   | 'retention_cohorts'
   | 'lead_coupons'
-  | 'utm_orders';
+  | 'utm_orders'
+  | 'cart_recovery';
 
 export type ChartRegistryContext = {
   sales: SalesPoint[];
@@ -95,6 +100,11 @@ export type ChartRegistryContext = {
   utmOrdersMovement: UtmOrdersSummary | null;
   utmOrdersLoading?: boolean;
   utmOrdersError?: string | null;
+  cartRecovery: CartRecoveryPoint[];
+  cartRecoverySummary: CartRecoverySummary | null;
+  cartRecoverySpeedBuckets: CartRecoverySpeedBucket[];
+  cartRecoveryLoading?: boolean;
+  cartRecoveryError?: string | null;
 };
 
 type ChartEntry = {
@@ -228,6 +238,20 @@ export const chartRegistry: ChartEntry[] = [
       />
     ),
   },
+  {
+    id: 'cart_recovery',
+    label: 'Cart Recovery',
+    description: 'Abandoned customers that returned and purchased',
+    render: (ctx) => (
+      <CartRecoveryChart
+        summary={ctx.cartRecoverySummary}
+        points={ctx.cartRecovery}
+        speedBuckets={ctx.cartRecoverySpeedBuckets}
+        loading={ctx.cartRecoveryLoading}
+        error={ctx.cartRecoveryError}
+      />
+    ),
+  },
 ];
 
 export const chartOptions: { label: string; value: ChartId; description?: string }[] = [
@@ -246,6 +270,7 @@ export const chartOptions: { label: string; value: ChartId; description?: string
   { label: 'Retention Cohorts', value: 'retention_cohorts', description: 'Cohort retention heatmap' },
   { label: 'Lead Coupon Funnel', value: 'lead_coupons', description: 'Lead coupons and usage rate' },
   { label: 'UTM Source/Medium Orders', value: 'utm_orders', description: 'Orders and customers by UTM source/medium' },
+  { label: 'Cart Recovery', value: 'cart_recovery', description: 'Abandoned customer recovery rate' },
 ];
 
 export function getChartById(id: ChartId) {

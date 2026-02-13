@@ -7,7 +7,6 @@
     "build": "echo \"skipping tsc build\"",
     "start": "ts-node --transpile-only src/index.ts",
     "prisma:generate": "prisma generate --schema ../../prisma/schema.prisma",
-    "postinstall": "pnpm prisma:generate",
     "snapshot:notion": "ts-node --transpile-only src/scripts/push-kpi-snapshot.ts",
     "test:customers": "ts-node --transpile-only src/tests/customers.integration.ts"
   },

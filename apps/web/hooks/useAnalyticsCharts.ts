@@ -17,6 +17,7 @@ import { useRetentionCohorts } from './useRetentionCohorts';
 import { useTopCategoriesPerformance } from './useTopCategoriesPerformance';
 import { useLeadCoupons } from './useLeadCoupons';
 import { useUtmOrders } from './useUtmOrders';
+import { useCartRecovery } from './useCartRecovery';
 
 type UseAnalyticsChartsResult = {
   chartSlots: ChartId[];
@@ -50,9 +51,16 @@ export function useAnalyticsCharts(filter: FilterState): UseAnalyticsChartsResul
     loading: utmOrdersLoading,
     error: utmOrdersError,
   } = useUtmOrders(filter);
+  const {
+    summary: cartRecoverySummary,
+    points: cartRecovery,
+    speedBuckets: cartRecoverySpeedBuckets,
+    loading: cartRecoveryLoading,
+    error: cartRecoveryError,
+  } = useCartRecovery(filter);
   const [chartSlots, setChartSlotsState] = useState<ChartId[]>([
     'revenue_orders', // slot 1
-    'utm_orders', // slot 2
+    'cart_recovery', // slot 2
     'top_categories', // slot 3
     'segments', // slot 4
   ]);
@@ -105,6 +113,11 @@ export function useAnalyticsCharts(filter: FilterState): UseAnalyticsChartsResul
     utmOrdersMovement,
     utmOrdersLoading,
     utmOrdersError,
+    cartRecovery,
+    cartRecoverySummary,
+    cartRecoverySpeedBuckets,
+    cartRecoveryLoading,
+    cartRecoveryError,
   };
 
   return { chartSlots, setChartSlots, chartContext };

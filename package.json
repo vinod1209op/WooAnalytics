@@ -2,10 +2,11 @@
 	"name": "wooanalytics-monorepo",
 	"private": true,
 	"scripts": {
-		"dev:web": "cd apps/web && pnpm dev",
-		"dev:api": "cd apps/api && pnpm dev",
-		"start": "pnpm dev:api",
-  		"api:start": "cd apps/api && pnpm start"
+		"dev:web": ".\\pnpmw.cmd --filter ./apps/web dev",
+		"dev:api": ".\\pnpmw.cmd --filter @wooanalytics/api dev",
+		"start": ".\\pnpmw.cmd --filter @wooanalytics/api dev",
+		"api:start": ".\\pnpmw.cmd --filter @wooanalytics/api start",
+		"prisma:generate": ".\\pnpmw.cmd --filter @wooanalytics/api prisma:generate && .\\pnpmw.cmd --filter @wooanalytics/worker prisma:generate"
 	},   
 	"devDependencies": {
 		"@types/node": "^24.10.1",

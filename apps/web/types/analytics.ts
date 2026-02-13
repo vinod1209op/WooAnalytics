@@ -92,3 +92,39 @@ export type UtmOrdersSummary = {
   customers: number;
   share: number;
 };
+
+export type CartRecoveryPoint = {
+  date: string;
+  abandonedOrders: number;
+  recoveredOrders: number;
+  abandonedCustomers: number;
+  recoveredCustomers: number;
+  orderRecoveryRate: number;
+  customerRecoveryRate: number;
+};
+
+export type CartRecoverySummary = {
+  abandonedOrders: number;
+  recoveredOrders: number;
+  orderRecoveryRate: number;
+  abandonedCustomers: number;
+  recoveredCustomers: number;
+  unrecoveredCustomers: number;
+  customerRecoveryRate: number;
+  averageRecoveryHours: number | null;
+  medianRecoveryHours: number | null;
+  recoveredWithin24h: number;
+  recoveryWindowDays: number;
+  statuses: {
+    abandoned: string[];
+    success: string[];
+  };
+};
+
+export type CartRecoverySpeedBucket = {
+  id: string;
+  label: string;
+  count: number;
+  shareRecovered: number;
+  shareAbandoned: number;
+};

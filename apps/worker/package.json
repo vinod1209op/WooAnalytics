@@ -9,7 +9,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "prisma:generate": "prisma generate --schema ../../prisma/schema.prisma",
     "seed:store": "ts-node src/scripts/seed-store.ts",
-    "postinstall": "pnpm prisma:generate",
     "sync:full": "ts-node src/scripts/run-full-sync.ts",
     "sync:since": "ts-node src/scripts/run-since-sync.ts",
     "sync:coupons": "ts-node src/scripts/run-coupon-sync.ts",

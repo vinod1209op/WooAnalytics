@@ -6,6 +6,7 @@ packages:
 ignoredBuiltDependencies:
   - '@prisma/engines'
   - core-js
+  - esbuild
   - msw
   - protobufjs
   - sharp

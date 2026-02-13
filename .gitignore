@@ -1,4 +1,4 @@
-# ========================
+﻿# ========================
 # Dependencies
 # ========================
 node_modules/
@@ -36,7 +36,7 @@ coverage/
 
 # ========================
 # Env files
-# (don’t commit real secrets)
+# (donâ€™t commit real secrets)
 # ========================
 .env
 .env.local
@@ -56,3 +56,5 @@ Information/
 apps/worker/woo-entities-all-routes.xlsx
 apps/worker/src/scripts/discover-all-entities.ts
 apps/web/components/README.md
+AGENTS.md
+

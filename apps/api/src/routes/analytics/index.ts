@@ -12,6 +12,7 @@ import { registerHealthRatiosRoute } from "./health-ratios";
 import { registerInsightRoutes } from "./insights";
 import { registerLeadCouponsRoute } from "./lead-coupons";
 import { registerUtmOrdersRoute } from "./utm-orders";
+import { registerCartRecoveryRoute } from "./cart-recovery";
 
 export function createAnalyticsRouter() {
   const router = Router();
@@ -29,6 +30,7 @@ export function createAnalyticsRouter() {
   registerInsightRoutes(router);
   registerLeadCouponsRoute(router);
   registerUtmOrdersRoute(router);
+  registerCartRecoveryRoute(router);
 
   return router;
 }
