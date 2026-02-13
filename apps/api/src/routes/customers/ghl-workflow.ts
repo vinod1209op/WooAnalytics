@@ -107,6 +107,25 @@ function toStringOrNull(value: unknown) {
   return trimmed || null;
 }
 
+function readObjectPath(source: Record<string, any> | null | undefined, path: string) {
+  if (!source) return undefined;
+  const parts = path.split(".");
+  let cursor: any = source;
+  for (const part of parts) {
+    if (!cursor || typeof cursor !== "object") return undefined;
+    cursor = cursor[part];
+  }
+  return cursor;
+}
+
+function pickBodyString(source: Record<string, any> | null | undefined, paths: string[]) {
+  for (const path of paths) {
+    const value = toStringOrNull(readObjectPath(source, path));
+    if (value) return value;
+  }
+  return null;
+}
+
 function toFiniteNumberOrNull(value: unknown) {
   if (value == null || value === "") return null;
   const num = Number(value);
@@ -477,13 +496,40 @@ export function registerGhlWorkflowRoute(router: Router) {
       const autoTag = Boolean(req.body?.autoTag);
       const storeCustomFields = req.body?.storeCustomFields !== false;
       const recordInboundEvent = req.body?.recordInboundEvent !== false;
-      const contactId = toStringOrNull(req.body?.contactId);
+      const contactId = pickBodyString(req.body, [
+        "contactId",
+        "contact.id",
+        "contact._id",
+        "meta.contactId",
+      ]);
       const locationId =
-        toStringOrNull(req.body?.locationId) || process.env.GHL_LOCATION_ID || null;
-      const conversationId = toStringOrNull(req.body?.conversationId);
-      const channel = toStringOrNull(req.body?.channel);
-      const repId = toStringOrNull(req.body?.repId);
-      const repName = toStringOrNull(req.body?.repName);
+        pickBodyString(req.body, ["locationId", "location.id", "location._id"]) ||
+        process.env.GHL_LOCATION_ID ||
+        null;
+      const conversationId = pickBodyString(req.body, [
+        "conversationId",
+        "conversation.id",
+        "conversation._id",
+        "message.conversationId",
+        "meta.conversationId",
+      ]) || (contactId ? `contact:${contactId}` : null);
+      const channel = pickBodyString(req.body, [
+        "channel",
+        "conversation.channel",
+        "message.channel",
+        "message.type",
+      ]);
+      const repId = pickBodyString(req.body, ["repId", "user.id", "assignedUser.id"]);
+      const repName = pickBodyString(req.body, [
+        "repName",
+        "user.name",
+        "assignedUser.name",
+      ]);
+      const eventTimestamp = pickBodyString(req.body, [
+        "timestamp",
+        "message.timestamp",
+        "message.dateAdded",
+      ]);
 
       const analysis = await aiAnalyzeMessage(message);
       const tags = extractTagsFromAnalysis(analysis);
@@ -562,7 +608,7 @@ export function registerGhlWorkflowRoute(router: Router) {
             const event: WorkflowEvent = {
               id: uid("wf"),
               eventType: "inbound",
-              timestamp: toIsoTimestampOrNow(req.body?.timestamp),
+              timestamp: toIsoTimestampOrNow(eventTimestamp),
               conversationId,
               contactId,
               locationId,
@@ -610,35 +656,103 @@ export function registerGhlWorkflowRoute(router: Router) {
     }
 
     try {
-      const eventType = toStringOrNull(req.body?.eventType)?.toLowerCase() || "";
+      const eventType =
+        pickBodyString(req.body, ["eventType", "event_type", "type"])?.toLowerCase() || "";
       if (!VALID_EVENT_TYPES.has(eventType)) {
         return res.status(400).json({ error: "Invalid eventType" });
       }
-      const conversationId = toStringOrNull(req.body?.conversationId);
+      const contactId = pickBodyString(req.body, [
+        "contactId",
+        "contact.id",
+        "contact._id",
+        "meta.contactId",
+      ]);
+      const conversationId =
+        pickBodyString(req.body, [
+          "conversationId",
+          "conversation.id",
+          "conversation._id",
+          "message.conversationId",
+          "meta.conversationId",
+        ]) || (contactId ? `contact:${contactId}` : null);
       if (!conversationId) {
-        return res.status(400).json({ error: "conversationId is required" });
+        return res.status(400).json({ error: "conversationId or contactId is required" });
       }
+      const locationId =
+        pickBodyString(req.body, ["locationId", "location.id", "location._id"]) ||
+        process.env.GHL_LOCATION_ID ||
+        null;
+      const channel = pickBodyString(req.body, [
+        "channel",
+        "conversation.channel",
+        "message.channel",
+        "message.type",
+      ]);
+      const repId = pickBodyString(req.body, ["repId", "user.id", "assignedUser.id"]);
+      const repName = pickBodyString(req.body, [
+        "repName",
+        "user.name",
+        "assignedUser.name",
+      ]);
+      const timestamp = pickBodyString(req.body, [
+        "timestamp",
+        "message.timestamp",
+        "message.dateAdded",
+      ]);
+      const firstResponseSeconds = toFiniteNumberOrNull(
+        readObjectPath(req.body, "firstResponseSeconds") ??
+          readObjectPath(req.body, "first_response_seconds") ??
+          readObjectPath(req.body, "metrics.firstResponseSeconds")
+      );
+      const repliedWithinMinutes = toFiniteNumberOrNull(
+        readObjectPath(req.body, "repliedWithinMinutes") ??
+          readObjectPath(req.body, "replied_within_minutes") ??
+          readObjectPath(req.body, "metrics.repliedWithinMinutes")
+      );
+      const sentiment = normalizeSentiment(
+        readObjectPath(req.body, "sentiment") ?? readObjectPath(req.body, "analysis.sentiment")
+      );
+      const intent = normalizeIntent(
+        readObjectPath(req.body, "intent") ?? readObjectPath(req.body, "analysis.intent")
+      );
+      const leadTemperature = normalizeTemperature(
+        readObjectPath(req.body, "leadTemperature") ??
+          readObjectPath(req.body, "analysis.leadTemperature")
+      );
+      const engaged = toBooleanOrNull(
+        readObjectPath(req.body, "engaged") ?? readObjectPath(req.body, "analysis.engaged")
+      );
+      const booked = toBooleanOrNull(
+        readObjectPath(req.body, "booked") ?? readObjectPath(req.body, "analysis.booked")
+      );
+      const saleValue = toFiniteNumberOrNull(
+        readObjectPath(req.body, "saleValue") ?? readObjectPath(req.body, "order.total")
+      );
+      const metadata = isObject(req.body?.metadata)
+        ? req.body.metadata
+        : isObject(req.body?.meta)
+        ? req.body.meta
+        : null;
 
       const next: WorkflowEvent = {
         id: uid("wf"),
         eventType: eventType as WorkflowEventType,
-        timestamp: toIsoTimestampOrNow(req.body?.timestamp),
+        timestamp: toIsoTimestampOrNow(timestamp),
         conversationId,
-        contactId: toStringOrNull(req.body?.contactId),
-        locationId:
-          toStringOrNull(req.body?.locationId) || process.env.GHL_LOCATION_ID || null,
-        channel: toStringOrNull(req.body?.channel),
-        repId: toStringOrNull(req.body?.repId),
-        repName: toStringOrNull(req.body?.repName),
-        firstResponseSeconds: toFiniteNumberOrNull(req.body?.firstResponseSeconds),
-        repliedWithinMinutes: toFiniteNumberOrNull(req.body?.repliedWithinMinutes),
-        sentiment: normalizeSentiment(req.body?.sentiment),
-        intent: normalizeIntent(req.body?.intent),
-        leadTemperature: normalizeTemperature(req.body?.leadTemperature),
-        engaged: toBooleanOrNull(req.body?.engaged),
-        booked: toBooleanOrNull(req.body?.booked),
-        saleValue: toFiniteNumberOrNull(req.body?.saleValue),
-        metadata: isObject(req.body?.metadata) ? req.body.metadata : null,
+        contactId,
+        locationId,
+        channel,
+        repId,
+        repName,
+        firstResponseSeconds,
+        repliedWithinMinutes,
+        sentiment,
+        intent,
+        leadTemperature,
+        engaged,
+        booked,
+        saleValue,
+        metadata,
       };
 
       const totalEvents = await appendWorkflowEvent(next);

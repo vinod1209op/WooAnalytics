@@ -123,6 +123,47 @@
         "summary": "quick smoke no secret",
         "recommendedAction": "Reply with clarifying question and CTA."
       }
+    },
+    {
+      "id": "wf_1770993283021_ijxkucfw",
+      "eventType": "inbound",
+      "timestamp": "2026-02-13T14:34:43.021Z",
+      "conversationId": "contact:contact_from_standard",
+      "contactId": "contact_from_standard",
+      "locationId": "loc_from_standard",
+      "channel": "sms",
+      "repId": null,
+      "repName": null,
+      "sentiment": "neutral",
+      "intent": "interested",
+      "leadTemperature": "warm",
+      "engaged": true,
+      "booked": false,
+      "metadata": {
+        "source": "ghl-ai-analyze",
+        "summary": "hello from ghl",
+        "recommendedAction": "Reply with clarifying question and CTA."
+      }
+    },
+    {
+      "id": "wf_1770993293224_f60y1dd4",
+      "eventType": "outbound_reply",
+      "timestamp": "2026-02-13T14:34:53.224Z",
+      "conversationId": "contact:contact_from_standard",
+      "contactId": "contact_from_standard",
+      "locationId": "loc_from_standard",
+      "channel": null,
+      "repId": "rep123",
+      "repName": "Rep Test",
+      "firstResponseSeconds": null,
+      "repliedWithinMinutes": null,
+      "sentiment": null,
+      "intent": null,
+      "leadTemperature": null,
+      "engaged": null,
+      "booked": null,
+      "saleValue": null,
+      "metadata": null
     }
   ]
 }

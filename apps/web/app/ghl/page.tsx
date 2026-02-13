@@ -176,15 +176,6 @@ export default function GhlPage() {
                 placeholder="uses GHL_LOCATION_ID if empty"
               />
             </div>
-            <div className="space-y-1">
-              <div className={labelClass}>SLA minutes</div>
-              <Input
-                className={inputClass}
-                value={slaMinutesInput}
-                onChange={(e) => setSlaMinutesInput(e.target.value)}
-                placeholder="30"
-              />
-            </div>
           </div>
         </div>
 
@@ -329,7 +320,15 @@ export default function GhlPage() {
               Metrics from `POST /customers/ghl-workflow-event` stream (AI/workflow automation events).
             </div>
           </div>
-          <div className="text-xs text-slate-500">SLA: {slaMinutes}m</div>
+          <div className="space-y-1">
+            <div className={labelClass}>SLA minutes</div>
+            <Input
+              className={`${inputClass} w-24`}
+              value={slaMinutesInput}
+              onChange={(e) => setSlaMinutesInput(e.target.value)}
+              placeholder="30"
+            />
+          </div>
         </div>
 
         {workflowError && (
