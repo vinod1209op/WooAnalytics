@@ -58,3 +58,4 @@ apps/worker/src/scripts/discover-all-entities.ts
 apps/web/components/README.md
 AGENTS.md
 
+.pnpm-store/
